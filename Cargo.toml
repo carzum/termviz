@@ -1,0 +1,16 @@
+[package]
+name = "termviz"
+version = "0.1.0"
+authors = ["Carsten Zumsande <termviz@zumsande.eu>"]
+edition = "2018"
+license = "MIT"
+exclude = ["assets/*", ".github"]
+
+
+[dependencies]
+nalgebra = "*"
+rosrust = "0.9"
+rosrust_msg = "0.1"
+rustros_tf = { git = "https://github.com/carzum/rustros_tf" }
+termion = "1.5"
+tui = "0.10.0"

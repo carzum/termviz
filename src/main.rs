@@ -1,9 +1,11 @@
+mod config;
 mod event;
 mod laser;
 mod footprint;
 mod initial_pose;
 mod transformation;
 mod marker;
+mod listeners;
 use std::io;
 use std::time::Duration;
 use std::sync::{Arc, Mutex, RwLock, Condvar};
@@ -36,14 +38,14 @@ pub fn compute_bounds(tf: &std::sync::RwLockReadGuard<rustros_tf::msg::geometry_
         tf.translation.y + 5.0 / zoom]
 }
 
-pub fn retrieve_map() -> rosrust_msg::nav_msgs::OccupancyGrid {
+pub fn retrieve_map(topic: &str) -> rosrust_msg::nav_msgs::OccupancyGrid {
 
     let pair = Arc::new((Mutex::new(false), Condvar::new()));
     let pair2 = pair.clone();
     let map = Arc::new(Mutex::new(rosrust_msg::nav_msgs::OccupancyGrid::default()));
     let cb_map = map.clone();
 
-    let _map_sub = rosrust::subscribe("map", 1, move |v: rosrust_msg::nav_msgs::OccupancyGrid| {
+    let _map_sub = rosrust::subscribe(topic, 1, move |v: rosrust_msg::nav_msgs::OccupancyGrid| {
         // Callback for handling received messages
         // let mut map = map.lock().unwrap();
         // Arc::get_mut_unchecked(&mut map).as_mut_ptr().write(v);
@@ -122,10 +124,11 @@ pub fn get_frame_lines(tf: &std::sync::RwLockReadGuard<rustros_tf::msg::geometry
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Terminal initialization
+    let conf = config::get_config().unwrap();
     println!("Connecting to ros...");
     rosrust::init("termviz");
     println!("Retrieving map...");
-    let map = retrieve_map();
+    let map = retrieve_map(&conf.map_topics[0]);
     println!("got map! size {} {}", map.info.width, map.info.height);
     let occ_points = get_map_points(&map);
     // println!("Retrieving markers...");
@@ -139,6 +142,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("spawning tf listener");
     let listener = Arc::new(Mutex::new(rustros_tf::TfListener::new()));
     let tf_listener = listener.clone();
+    let sleep = 1000 / conf.target_framerate as u64;
     let _tf_handle = thread::spawn(move|| {
         // update robot position thread
         while rosrust::is_ok() {
@@ -151,17 +155,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let mut cb_tf = cb_tf.write().unwrap();
                 *cb_tf = res.as_ref().unwrap().transform.clone();
             }}
-            thread::sleep(Duration::from_millis(50));
+            thread::sleep(Duration::from_millis(sleep));
         }
     });
 
     println!("getting laser scans");
-    let laser_scan = laser::LaserListener::new(
-        "scan", listener.clone(), static_frame.clone());
+    let listeners = listeners::Listeners::new(
+        listener.clone(), static_frame.clone(),
+        conf.laser_topics, conf.marker_array_topics);
     let initial_pose_pub = initial_pose::InitialPosePub::new(
         "initial_pose", listener.clone(), tf.clone(), static_frame.clone());
-    let markers = marker::MarkerListener::new(
-        "marker_array", listener.clone(), static_frame.clone());
 
     let footprint_poly = footprint::get_footprint();
 
@@ -179,7 +182,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let size_factor = tsize.0 as f64 / tsize.1 as f64 * 0.5;
 
     let config = Config {
-        tick_rate: Duration::from_millis(50),
+        tick_rate: Duration::from_millis(sleep),
         ..Default::default()
     };
     let events = Events::with_config(config);
@@ -220,13 +223,19 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 y2: elem.3,
                                 color: Color::Blue,
                             });
-                        ctx.draw(&Points {
-                            coords: &laser_scan.points.read().unwrap(),
-                            color: Color::Green,
-                            });
                         };
+                        for laser in &listeners.lasers {
+                            ctx.draw(&Points {
+                                coords: &laser.points.read().unwrap(),
+                                color: Color::Red,
+                            });
+                        }
+                        for marker in &listeners.markers {
+                            for line in marker.get_lines() {
+                                ctx.draw(&line);
+                            };
+                        }
                         for line in get_frame_lines(&tf.read().unwrap()) { ctx.draw(&line); };
-                        for line in markers.get_lines() { ctx.draw(&line); };
                         let pos = &tf.as_ref().read().unwrap().translation;
                         ctx.print(pos.x, pos.y,"base_link", Color::White);
                 });

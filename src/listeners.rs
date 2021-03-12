@@ -1,5 +1,6 @@
 use crate::laser;
 use crate::marker;
+use crate::map;
 
 use std::sync::{Arc, Mutex};
 
@@ -7,6 +8,7 @@ use std::sync::{Arc, Mutex};
 pub struct Listeners {
     pub lasers: Vec<laser::LaserListener>,
     pub markers: Vec<marker::MarkerListener>,
+    pub maps: Vec<map::MapListener>,
 }
 
 impl Listeners {
@@ -15,6 +17,7 @@ impl Listeners {
         static_frame: String,
         laser_topics: Vec<String>,
         marker_topics: Vec<String>,
+        map_topics: Vec<String>,
         ) -> Listeners
     {
         let mut lasers: Vec<laser::LaserListener> = Vec::new();
@@ -32,9 +35,19 @@ impl Listeners {
                     &marker_topic, tf_listener.clone(),
                     static_frame.clone()));
         }
+
+        let mut maps: Vec<map::MapListener> = Vec::new();
+        for map_topic in map_topics {
+            maps.push(
+                map::MapListener::new(
+                    &map_topic, tf_listener.clone(),
+                    static_frame.clone()));
+        }
+
         Listeners{
             lasers: lasers,
-            markers: markers
+            markers: markers,
+            maps: maps
         }
     }
 

@@ -12,7 +12,7 @@ confy = "*"
 nalgebra = "*"
 rosrust = "0.9"
 rosrust_msg = "0.1"
-rustros_tf = { git = "https://github.com/carzum/rustros_tf" }
+rustros_tf = { git = "https://github.com/maximaerz/rustros_tf" }
 serde = { version = "*", features = ["derive"] }
 serde_derive = "*"
 termion = "1.5"

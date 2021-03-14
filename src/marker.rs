@@ -1,43 +1,33 @@
+use crate::transformation;
 use std::sync::{Arc, Mutex, RwLock};
 
 use rosrust;
-use rustros_tf;
-use nalgebra::geometry::{Quaternion, UnitQuaternion, Isometry3,Point3, Translation3};
+use rustros_tf::transforms::{isometry_from_pose, isometry_from_transform};
+use rustros_tf::transforms::nalgebra::geometry::Point3;
+
 use tui::style::Color;
 use tui::widgets::canvas::{Line};
 
-
 pub fn marker_2_rectancle(msg: &rosrust_msg::visualization_msgs::Marker,
-                          tf: &rustros_tf::msg::geometry_msgs::Transform) -> Vec<Line> {
+                          tf: &rosrust_msg::geometry_msgs::Transform) -> Vec<Line> {
     let mut lines: Vec<Line> = Vec::new();
     // get corner points of box
-    let tras = Translation3::new(tf.translation.x, tf.translation.y,
-                                 tf.translation.z);
-    let rots = UnitQuaternion::new_normalize(Quaternion::new(
-            tf.rotation.w, tf.rotation.x, tf.rotation.y, tf.rotation.z));
+    let trans_marker_to_static_frame = isometry_from_transform(tf);
+    let trans_to_marker = isometry_from_pose(&msg.pose);
 
-    let isometry = Isometry3::from_parts(tras, rots);
-    let tra = Translation3::new(msg.pose.position.x,
-                                msg.pose.position.y,
-                                msg.pose.position.z);
 
-    let rot = UnitQuaternion::new_normalize(Quaternion::new(
-            msg.pose.orientation.w,
-            msg.pose.orientation.x,
-            msg.pose.orientation.y,
-            msg.pose.orientation.z));
+    let iso = trans_marker_to_static_frame.inverse() * trans_to_marker;
 
-    let iso = isometry * Isometry3::from_parts(tra, rot).inverse();
     let color = Color::Rgb((msg.color.r * 255.0) as u8,
                            (msg.color.g * 255.0) as u8,
                            (msg.color.b * 255.0) as u8);
 
     let p1 = iso.transform_point(&Point3::new(msg.scale.x / 2.,
-                                              msg.scale.y / 2., 0.0));
+                                      msg.scale.y / 2., 0.0));
     let p2 = iso.transform_point(&Point3::new(msg.scale.x / 2.,
-                                              - msg.scale.y / 2., 0.0));
+                                      - msg.scale.y / 2., 0.0));
     let p3 = iso.transform_point(&Point3::new(- msg.scale.x / 2.,
-                                              - msg.scale.y / 2., 0.0));
+                                      - msg.scale.y / 2., 0.0));
     let p4 = iso.transform_point(&Point3::new(- msg.scale.x / 2.,
                                               msg.scale.y / 2., 0.0));
     lines.push(Line{x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, color: color});
@@ -72,7 +62,7 @@ impl MarkerListener {
             for marker in msg.markers {
                 if marker.action != 0 { continue }
                 let res = &listener.lookup_transform(
-                    &moved_static, &marker.header.frame_id, marker.header.stamp);
+                    &marker.header.frame_id, &moved_static, marker.header.stamp);
                 match res {
                     Ok(res) => res,
                     Err(_e) => continue,

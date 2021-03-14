@@ -26,11 +26,12 @@ use tui::Terminal;
 
 use std::error::Error;
 use rosrust;
+use rosrust_msg;
 use rustros_tf;
 use event::{Config, Event, Events};
 
 
-pub fn compute_bounds(tf: &std::sync::RwLockReadGuard<rustros_tf::msg::geometry_msgs::Transform>,
+pub fn compute_bounds(tf: &std::sync::RwLockReadGuard<rosrust_msg::geometry_msgs::Transform>,
                       zoom: f64, scale_factor: f64) -> Vec<f64> {
         vec![tf.translation.x - 5.0 / zoom * scale_factor,
         tf.translation.x + 5.0 / zoom * scale_factor,
@@ -38,7 +39,8 @@ pub fn compute_bounds(tf: &std::sync::RwLockReadGuard<rustros_tf::msg::geometry_
         tf.translation.y + 5.0 / zoom]
 }
 
-pub fn get_frame_lines(tf: &std::sync::RwLockReadGuard<rustros_tf::msg::geometry_msgs::Transform>) -> Vec<Line> {
+
+pub fn get_frame_lines(tf: &std::sync::RwLockReadGuard<rosrust_msg::geometry_msgs::Transform>) -> Vec<Line> {
         let mut result: Vec<Line> = Vec::new();
         let base_x = transformation::transform_relative_pt(&tf, (0.1, 0.0));
         let base_y = transformation::transform_relative_pt(&tf, (0.0, 0.1));
@@ -59,6 +61,7 @@ pub fn get_frame_lines(tf: &std::sync::RwLockReadGuard<rustros_tf::msg::geometry
         result
 }
 
+
 fn main() -> Result<(), Box<dyn Error>> {
     // Terminal initialization
     let conf = config::get_config().unwrap();
@@ -68,7 +71,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let static_frame  = conf.fixed_frame;
     let tf = Arc::new(RwLock::new(
-            rustros_tf::msg::geometry_msgs::Transform::default()));
+            rosrust_msg::geometry_msgs::Transform::default()));
     let cb_tf = tf.clone();
     println!("spawning tf listener");
     let listener = Arc::new(Mutex::new(rustros_tf::TfListener::new()));
@@ -99,7 +102,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "initial_pose", listener.clone(), tf.clone(), static_frame.clone());
 
     let footprint_poly = footprint::get_footprint();
-
 
     // thread::sleep(Duration::from_secs(10));
     println!("Initiatiing terminal");

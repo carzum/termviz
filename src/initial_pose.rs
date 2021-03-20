@@ -10,14 +10,14 @@ pub struct InitialPosePub {
     publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::PoseWithCovarianceStamped>,
     _frame_id: String,
     _tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
-    ref_transform: Arc<RwLock<rustros_tf::msg::geometry_msgs::Transform>>,
+    ref_transform: Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
     static_frame: String,
 }
 
 impl InitialPosePub {
     pub fn new(frame_id: &str,
                tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
-               ref_transform: Arc<RwLock<rustros_tf::msg::geometry_msgs::Transform>>,
+               ref_transform: Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
                static_frame: String,
                ) -> InitialPosePub
     {
@@ -46,7 +46,7 @@ impl InitialPosePub {
                                         tf.translation.z);
     // 3: z 2: y, 1: x, 0: w
         let cur_rot = UnitQuaternion::new_normalize(Quaternion::new(
-                tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w));
+                tf.rotation.w, tf.rotation.x, tf.rotation.y, tf.rotation.z));
         let cur_isometry = Isometry3::from_parts(cur_tra, cur_rot);
 
         let iso = cur_isometry * isometry;

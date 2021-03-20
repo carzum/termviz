@@ -1,7 +1,7 @@
 use crate::transformation;
 
 use rosrust;
-use rustros_tf;
+use rosrust_msg;
 
 
 pub fn get_footprint() -> Vec<(f64, f64)> {
@@ -18,7 +18,7 @@ pub fn get_footprint() -> Vec<(f64, f64)> {
     result
 }
 
-pub fn get_current_footprint(tf: &std::sync::RwLockReadGuard<rustros_tf::msg::geometry_msgs::Transform>,
+pub fn get_current_footprint(tf: &std::sync::RwLockReadGuard<rosrust_msg::geometry_msgs::Transform>,
                              footprint_poly: &Vec<(f64, f64)>) -> Vec<(f64, f64, f64, f64)> {
     let mut result: Vec<(f64, f64, f64, f64)> = Vec::new();
     for i in 0..footprint_poly.len() - 1{

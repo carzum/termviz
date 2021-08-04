@@ -29,15 +29,13 @@ pub fn get_footprint() -> Vec<(f64, f64)> {
                 }
                 Err(_e) => {
                     println!("/footprint not found, using default footprint.");
-                    result = get_default_footprint();
-                    result
+                    get_default_footprint()
                 }
             }
         }
         None => {
             println!("/footprint not found, using default footprint.");
-            result = get_default_footprint();
-            result
+            get_default_footprint()
         }
     }
 }

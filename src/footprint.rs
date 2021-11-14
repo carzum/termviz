@@ -4,7 +4,7 @@ use rosrust;
 use rosrust_msg;
 
 const DEFAULT_FOOTPRINT: [[f64; 2]; 4] =
-    [[0.25, 0.25], [-0.25, 0.25], [-0.25, -0.25], [0.25, -0.25]];
+    [[0.01, 0.01], [-0.01, 0.01], [-0.01, -0.01], [0.01, -0.01]];
 
 pub fn get_default_footprint() -> Vec<(f64, f64)> {
     let mut result = Vec::<(f64, f64)>::new();
@@ -24,6 +24,10 @@ pub fn get_footprint() -> Vec<(f64, f64)> {
                 Ok(f) => {
                     for pt in f {
                         result.push((pt[0], pt[1]));
+                    }
+                    if result.is_empty() {
+                        println!("/footprint is empty, using default footprint.");
+                        return get_default_footprint();
                     }
                     result
                 }

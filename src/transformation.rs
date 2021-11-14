@@ -1,4 +1,3 @@
-use rosrust_msg::geometry_msgs::{Transform, Pose};
 use nalgebra::geometry::{Quaternion, UnitQuaternion, Point3, Isometry3, Translation3};
 
 pub fn transform_relative_pt(tf: &std::sync::RwLockReadGuard<rosrust_msg::geometry_msgs::Transform>,

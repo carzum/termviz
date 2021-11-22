@@ -40,10 +40,10 @@ pub fn compute_bounds(tf: &std::sync::RwLockReadGuard<rosrust_msg::geometry_msgs
 }
 
 
-pub fn get_frame_lines(tf: &std::sync::RwLockReadGuard<rosrust_msg::geometry_msgs::Transform>) -> Vec<Line> {
+pub fn get_frame_lines(tf: &std::sync::RwLockReadGuard<rosrust_msg::geometry_msgs::Transform>, axis_length: f64) -> Vec<Line> {
         let mut result: Vec<Line> = Vec::new();
-        let base_x = transformation::transform_relative_pt(&tf, (0.1, 0.0));
-        let base_y = transformation::transform_relative_pt(&tf, (0.0, 0.1));
+        let base_x = transformation::transform_relative_pt(&tf, (axis_length, 0.0));
+        let base_y = transformation::transform_relative_pt(&tf, (0.0, axis_length));
         result.push(Line {
             x1: tf.translation.x,
             y1: tf.translation.y,
@@ -70,6 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Retrieving map...");
 
     let static_frame  = conf.fixed_frame;
+    let axis_length = conf.axis_length;
     let tf = Arc::new(RwLock::new(
             rosrust_msg::geometry_msgs::Transform::default()));
     let cb_tf = tf.clone();
@@ -171,7 +172,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 ctx.draw(&line);
                             };
                         }
-                        for line in get_frame_lines(&tf.read().unwrap()) { ctx.draw(&line); };
+                        for line in get_frame_lines(&tf.read().unwrap(), axis_length) { ctx.draw(&line); };
                         let pos = &tf.as_ref().read().unwrap().translation;
                         ctx.print(pos.x, pos.y,"base_link", Color::White);
                 });

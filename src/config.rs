@@ -9,6 +9,7 @@ pub struct TermvizConfig {
     pub laser_topics: Vec<String>,
     pub marker_array_topics: Vec<String>,
     pub target_framerate: i64,
+    pub axis_length: f64,
 }
 
 impl Default for TermvizConfig {
@@ -20,6 +21,7 @@ impl Default for TermvizConfig {
             laser_topics: vec!["scan".to_string()],
             marker_array_topics: vec!["marker_array".to_string()],
             target_framerate: 42,
+            axis_length: 0.5,
         };
         let res = confy::store("termviz", &conf);
         match res {

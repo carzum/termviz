@@ -1,22 +1,19 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use rosrust;
 use rosrust_msg;
-use rustros_tf;
 use nalgebra::geometry::{Quaternion, UnitQuaternion, Isometry3, Translation3};
 
 
 pub struct InitialPosePub {
     publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::PoseWithCovarianceStamped>,
     _frame_id: String,
-    _tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
     ref_transform: Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
     static_frame: String,
 }
 
 impl InitialPosePub {
     pub fn new(frame_id: &str,
-               tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
                ref_transform: Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
                static_frame: String,
                ) -> InitialPosePub
@@ -25,7 +22,6 @@ impl InitialPosePub {
         InitialPosePub{
             publisher: publisher,
             _frame_id: frame_id.to_string(),
-            _tf_listener: tf_listener,
             ref_transform: ref_transform,
             static_frame: static_frame,
         }

@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+
+export DESTROOT=$(CURDIR)/debian/termviz
+
+%:
+	dh $@
+
+override_dh_auto_install:
+	dh_auto_install
+	install -d $(DESTROOT)/usr/bin/
+	mv $(DESTROOT)/bin/ $(DESTROOT)/usr/

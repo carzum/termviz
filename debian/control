@@ -1,0 +1,13 @@
+Source: termviz
+Section: misc
+Priority: optional
+Maintainer: Markus Grimm <grimm.markus@gmail.com>
+Build-Depends: debhelper-compat (= 12), cargo, cmake, gfortran, ros-geometry-msgs, ros-visualization-msgs, ros-sensor-msgs, ros-nav-msgs, ros-tf2-msgs
+Standards-Version: 4.5.0
+Homepage: https://github.com/carzum/termviz
+
+Package: termviz
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: termviz
+ Terminal RVIZ

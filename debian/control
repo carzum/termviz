@@ -8,6 +8,6 @@ Homepage: https://github.com/carzum/termviz
 
 Package: termviz
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${misc:Depends}
 Description: termviz
  Terminal RVIZ

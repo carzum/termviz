@@ -61,7 +61,6 @@ pub fn get_frame_lines(
 
 pub struct App{
     pub mode: AppModes,
-    pub tf_listener: Arc<Mutex<TfListener>>,
     pub listeners: Listeners,
     pub terminal_size: (u16, u16),
     pub bounds: Vec<f64>,
@@ -75,7 +74,6 @@ impl Default for App {
         let config = get_config().unwrap();
         App{
             mode: AppModes::RobotView,
-            tf_listener: Arc::new(Mutex::new(TfListener::new())),
             listeners: Listeners::new(
                 Arc::new(Mutex::new(TfListener::new())),
                 config.fixed_frame,

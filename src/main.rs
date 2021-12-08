@@ -73,6 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut running_app = default_app_config.lock().unwrap();
     let mut terminal = running_app.init_terminal().unwrap();
 
+
     loop {
         terminal.draw( |f| {
             running_app.compute_bounds(&current_tf);

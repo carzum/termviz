@@ -1,4 +1,4 @@
-use crate::config::{TermvizConfig, get_config};
+use crate::config::get_config;
 use crate::listeners::Listeners;
 use crate::footprint::{get_footprint, get_current_footprint};
 use crate::transformation;
@@ -61,10 +61,7 @@ pub fn get_frame_lines(
 
 pub struct App{
     pub mode: AppModes,
-    pub user_config: TermvizConfig,
-    pub fixed_frame: String,
     pub tf_listener: Arc<Mutex<TfListener>>,
-    pub update_frequency: u64,
     pub listeners: Listeners,
     pub terminal_size: (u16, u16),
     pub bounds: Vec<f64>,
@@ -75,23 +72,21 @@ pub struct App{
 
 impl Default for App {
     fn default() -> Self{
+        let config = get_config().unwrap();
         App{
             mode: AppModes::RobotView,
-            user_config: get_config().unwrap(),
-            fixed_frame: get_config().unwrap().fixed_frame,
             tf_listener: Arc::new(Mutex::new(TfListener::new())),
-            update_frequency: 1000 / get_config().unwrap().target_framerate as u64,
             listeners: Listeners::new(
                 Arc::new(Mutex::new(TfListener::new())),
-                get_config().unwrap().fixed_frame,
-                get_config().unwrap().laser_topics,
-                get_config().unwrap().marker_array_topics,
-                get_config().unwrap().map_topics),
+                config.fixed_frame,
+                config.laser_topics,
+                config.marker_array_topics,
+                config.map_topics),
             terminal_size: terminal_size().unwrap(),
             zoom: 1.0,
             bounds: vec![-5., 5., -5., 5.],
             footprint_poly: get_footprint(),
-            axis_length: get_config().unwrap().axis_length,
+            axis_length: config.axis_length,
         }
     }
 }

@@ -69,8 +69,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let events = Events::with_config(config);
 
     let mut distance = 0.1;
-    let i_app = Arc::new(Mutex::new(app::App::default()));
-    let mut running_app = i_app.lock().unwrap();
+    let default_app_config = Arc::new(Mutex::new(app::App::default()));
+    let mut running_app = default_app_config.lock().unwrap();
     let mut terminal = running_app.init_terminal().unwrap();
 
     loop {

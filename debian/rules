@@ -1,11 +1,8 @@
 #!/usr/bin/make -f
 
-export DESTROOT=$(CURDIR)/debian/termviz
-
 %:
 	dh $@
 
 override_dh_auto_install:
+	CARGO_HOME=.cargo ROSRUST_MSG_PATH=/usr/share/ cargo install --path=$(CURDIR) --root=$(CURDIR)/debian/termviz/usr/ --no-track
 	dh_auto_install
-	install -d $(DESTROOT)/usr/bin/
-	mv $(DESTROOT)/bin/ $(DESTROOT)/usr/

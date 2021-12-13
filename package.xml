@@ -15,4 +15,5 @@
     <build_depend>sensor_msgs</build_depend>
     <build_depend>nav_msgs</build_depend>
     <build_depend>tf2_msgs</build_depend>
+    <build_depend>cargo</build_depend>
 </package>

@@ -10,6 +10,8 @@ pub struct TermvizConfig {
     pub marker_array_topics: Vec<String>,
     pub target_framerate: i64,
     pub axis_length: f64,
+    pub visible_area: Vec<f64>, //Borders of map from center in Meter
+    pub zoom_factor: f64,
 }
 
 impl Default for TermvizConfig {
@@ -22,6 +24,8 @@ impl Default for TermvizConfig {
             marker_array_topics: vec!["marker_array".to_string()],
             target_framerate: 42,
             axis_length: 0.5,
+            visible_area: vec![5., -5., 5., -5.],
+            zoom_factor: 0.1,
         };
         let res = confy::store("termviz", &conf);
         match res {

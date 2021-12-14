@@ -24,17 +24,6 @@ pub enum AppModes{
     RobotView,
 }
 
-pub fn compute_bounds(
-            ref_transform: &Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
-            zoom: f64,
-            scale_factor: f64) -> Vec<f64> {
-        let tf = &ref_transform.as_ref().read().unwrap();
-        vec![tf.translation.x - 5.0 / zoom * scale_factor,
-        tf.translation.x + 5.0 / zoom * scale_factor,
-        tf.translation.y - 5.0 / zoom,
-        tf.translation.y + 5.0 / zoom]
-}
-
 pub fn get_frame_lines(
             ref_transform: &Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>, axis_length: f64
         ) -> Vec<Line> {
@@ -61,12 +50,13 @@ pub fn get_frame_lines(
 
 pub struct App{
     pub mode: AppModes,
-    pub listeners: Listeners,
-    pub terminal_size: (u16, u16),
-    pub bounds: Vec<f64>,
-    pub zoom: f64,
-    pub footprint_poly: Vec<(f64, f64)>,
-    pub axis_length: f64,
+    listeners: Listeners,
+    terminal_size: (u16, u16),
+    initial_bounds: Vec<f64>,
+    bounds: Vec<f64>,
+    zoom: f64,
+    axis_length: f64,
+    zoom_factor: f64,
 }
 
 impl Default for App {
@@ -82,9 +72,10 @@ impl Default for App {
                 config.map_topics),
             terminal_size: terminal_size().unwrap(),
             zoom: 1.0,
-            bounds: vec![-5., 5., -5., 5.],
-            footprint_poly: get_footprint(),
+            initial_bounds: config.visible_area.clone(),
+            bounds: config.visible_area.clone(),
             axis_length: config.axis_length,
+            zoom_factor: config.zoom_factor,
         }
     }
 }
@@ -112,23 +103,29 @@ impl App{
             &mut self,
             ref_transform: &Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>)
         {
-            let size_factor = self.terminal_size.0 as f64 / self.terminal_size.1 as f64 * 0.5;
-            self.bounds = compute_bounds(ref_transform, self.zoom, size_factor);
-
+            // 0.5 is the height width ratio of terminal chars
+            let scale_factor = self.terminal_size.0 as f64 / self.terminal_size.1 as f64 * 0.5;
+            let tf = &ref_transform.as_ref().read().unwrap();
+            self.bounds = vec![
+                tf.translation.x + self.initial_bounds[0] / self.zoom * scale_factor,
+                tf.translation.x + self.initial_bounds[1] / self.zoom * scale_factor,
+                tf.translation.y + self.initial_bounds[2] / self.zoom,
+                tf.translation.y + self.initial_bounds[3] / self.zoom,
+            ];
         }
 
     pub fn increase_zoom(
         &mut self,
     )
     {
-        self.zoom -= 0.1;
+        self.zoom -= self.zoom_factor;
     }
 
     pub fn decrease_zoom(
         &mut self,
     )
     {
-        self.zoom += 0.1;
+        self.zoom += self.zoom_factor;
     }
 
     pub fn draw_robot<B>(
@@ -143,7 +140,7 @@ impl App{
         let canvas = Canvas::default()
             .block(
                 Block::default()
-                    .title(format!("Robot Viewer"))
+                    .title(format!("Robot View"))
                     .borders(Borders::NONE),
             )
             .x_bounds([self.bounds[0], self.bounds[1]])

@@ -1,3 +1,4 @@
+use crate::config::ListenerConfig;
 use crate::laser;
 use crate::marker;
 use crate::map;
@@ -15,32 +16,32 @@ impl Listeners {
     pub fn new(
         tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
         static_frame: String,
-        laser_topics: Vec<String>,
-        marker_topics: Vec<String>,
-        map_topics: Vec<String>,
+        laser_topics: Vec<ListenerConfig>,
+        marker_topics: Vec<ListenerConfig>,
+        map_topics: Vec<ListenerConfig>,
         ) -> Listeners
     {
         let mut lasers: Vec<laser::LaserListener> = Vec::new();
-        for laser_topic in laser_topics {
+        for laser_config in laser_topics {
             lasers.push(
                 laser::LaserListener::new(
-                    &laser_topic, tf_listener.clone(),
+                    laser_config, tf_listener.clone(),
                     static_frame.clone()));
         }
 
         let mut markers: Vec<marker::MarkerListener> = Vec::new();
-        for marker_topic in marker_topics {
+        for marker_config in marker_topics {
             markers.push(
                 marker::MarkerListener::new(
-                    &marker_topic, tf_listener.clone(),
+                    marker_config, tf_listener.clone(),
                     static_frame.clone()));
         }
 
         let mut maps: Vec<map::MapListener> = Vec::new();
-        for map_topic in map_topics {
+        for map_config in map_topics {
             maps.push(
                 map::MapListener::new(
-                    &map_topic, tf_listener.clone(),
+                    map_config, tf_listener.clone(),
                     static_frame.clone()));
         }
 

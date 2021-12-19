@@ -1,3 +1,4 @@
+use crate::config::ListenerConfig;
 use crate::transformation;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -8,15 +9,15 @@ use rosrust;
 use rustros_tf;
 
 pub struct MapListener {
-    _topic: String,
+    pub config: ListenerConfig,
+    pub points: Arc<RwLock<Vec<(f64, f64)>>>,
     _tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
     _static_frame: String,
     _subscriber: rosrust::Subscriber,
-    pub points: Arc<RwLock<Vec<(f64, f64)>>>,
 }
 
 impl MapListener {
-    pub fn new(topic: &str,
+    pub fn new(config: ListenerConfig,
            tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
            static_frame: String,
            ) -> MapListener
@@ -27,7 +28,7 @@ impl MapListener {
         let map_listener = tf_listener.clone();
         let str_ = static_frame.clone();
         let map_sub = rosrust::subscribe(
-            topic, 1, move | map: rosrust_msg::nav_msgs::OccupancyGrid| {
+            &config.topic, 1, move | map: rosrust_msg::nav_msgs::OccupancyGrid| {
             let mut points: Vec<(f64, f64)> = Vec::new();
             let map_listener = map_listener.lock().unwrap();
             let res = &map_listener.lookup_transform(
@@ -69,11 +70,11 @@ impl MapListener {
             }).unwrap();
 
         MapListener{
-            _topic: topic.to_string(),
+            config,
+            points: occ_points,
             _tf_listener: tf_listener,
             _static_frame: static_frame.to_string(),
             _subscriber: map_sub,
-            points: occ_points,
         }
     }
 }

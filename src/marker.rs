@@ -1,3 +1,4 @@
+use crate::config::ListenerConfig;
 use std::sync::{Arc, Mutex, RwLock};
 
 use rosrust;
@@ -5,7 +6,7 @@ use rustros_tf::transforms::{isometry_from_pose, isometry_from_transform};
 use rustros_tf::transforms::nalgebra::geometry::Point3;
 
 use tui::style::Color;
-use tui::widgets::canvas::{Line};
+use tui::widgets::canvas::Line;
 
 pub fn marker_2_rectancle(msg: &rosrust_msg::visualization_msgs::Marker,
                           tf: &rosrust_msg::geometry_msgs::Transform) -> Vec<Line> {
@@ -38,15 +39,15 @@ pub fn marker_2_rectancle(msg: &rosrust_msg::visualization_msgs::Marker,
 
 
 pub struct MarkerListener {
-    _topic: String,
+    pub config: ListenerConfig,
+    pub lines: Arc<RwLock<Vec<Line>>>,
     _tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
     _static_frame: String,
     _subscriber: rosrust::Subscriber,
-    pub lines: Arc<RwLock<Vec<Line>>>,
 }
 
 impl MarkerListener {
-    pub fn new(topic: &str,
+    pub fn new(config: ListenerConfig,
            tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
            static_frame: String
            ) -> MarkerListener
@@ -56,7 +57,7 @@ impl MarkerListener {
 
         let marker_listener = tf_listener.clone();
         let moved_static = static_frame.clone();
-        let sub = rosrust::subscribe(topic, 2, move |msg: rosrust_msg::visualization_msgs::MarkerArray| {
+        let sub = rosrust::subscribe(&config.topic, 2, move |msg: rosrust_msg::visualization_msgs::MarkerArray| {
             let listener = marker_listener.lock().unwrap();
             for marker in msg.markers {
                 if marker.action != 0 { continue }
@@ -76,11 +77,11 @@ impl MarkerListener {
             }).unwrap();
 
         MarkerListener{
-            _topic: topic.to_string(),
+            config,
+            lines: blines,
             _tf_listener: tf_listener,
             _static_frame: static_frame.to_string(),
             _subscriber: sub,
-            lines: blines,
         }
     }
 

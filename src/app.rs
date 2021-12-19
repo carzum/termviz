@@ -149,7 +149,9 @@ impl App{
                     for map in &self.listeners.maps {
                         ctx.draw(&Points {
                             coords: &map.points.read().unwrap(),
-                            color: Color::Rgb(220, 220, 220),
+                            color: Color::Rgb(map.config.color.r,
+                                              map.config.color.g,
+                                              map.config.color.b),
                         });
                     }
                     ctx.layer();
@@ -165,7 +167,9 @@ impl App{
                     for laser in &self.listeners.lasers {
                         ctx.draw(&Points {
                             coords: &laser.points.read().unwrap(),
-                            color: Color::Red,
+                            color: Color::Rgb(laser.config.color.r,
+                                              laser.config.color.g,
+                                              laser.config.color.b),
                         });
                     }
                     for marker in &self.listeners.markers {

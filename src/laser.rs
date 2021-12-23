@@ -1,3 +1,4 @@
+use crate::config::ListenerConfig;
 use crate::transformation;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -6,15 +7,15 @@ use rosrust;
 use rustros_tf;
 
 pub struct LaserListener {
-    _topic: String,
+    pub config: ListenerConfig,
+    pub points: Arc<RwLock<Vec<(f64, f64)>>>,
     _tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
     _static_frame: String,
     _subscriber: rosrust::Subscriber,
-    pub points: Arc<RwLock<Vec<(f64, f64)>>>,
 }
 
 impl LaserListener {
-    pub fn new(topic: &str,
+    pub fn new(config: ListenerConfig,
            tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
            static_frame: String,
            ) -> LaserListener
@@ -25,7 +26,7 @@ impl LaserListener {
         let laser_listener = tf_listener.clone();
         let str_ = static_frame.clone();
         let laser_sub = rosrust::subscribe(
-            topic, 2, move |scan: rosrust_msg::sensor_msgs::LaserScan| {
+            &config.topic, 2, move |scan: rosrust_msg::sensor_msgs::LaserScan| {
             let mut points: Vec<(f64, f64)> = Vec::new();
             let laser_listener = laser_listener.lock().unwrap();
             let res = &laser_listener.lookup_transform(
@@ -49,11 +50,11 @@ impl LaserListener {
             }).unwrap();
 
         LaserListener{
-            _topic: topic.to_string(),
+            config,
+            points: scan_points,
             _tf_listener: tf_listener,
             _static_frame: static_frame.to_string(),
             _subscriber: laser_sub,
-            points: scan_points,
         }
     }
 }

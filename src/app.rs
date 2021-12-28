@@ -57,25 +57,27 @@ pub struct App{
     zoom: f64,
     axis_length: f64,
     zoom_factor: f64,
+    footprint: Vec<(f64, f64)>,
 }
 
 impl Default for App {
     fn default() -> Self{
         let config = get_config().unwrap();
         App{
-            mode: AppModes::RobotView,
+            axis_length: config.axis_length,
+            bounds: config.visible_area.clone(),
             listeners: Listeners::new(
                 Arc::new(Mutex::new(TfListener::new())),
                 config.fixed_frame,
                 config.laser_topics,
                 config.marker_array_topics,
                 config.map_topics),
+            initial_bounds: config.visible_area.clone(),
+            mode: AppModes::RobotView,
             terminal_size: terminal_size().unwrap(),
             zoom: 1.0,
-            initial_bounds: config.visible_area.clone(),
-            bounds: config.visible_area.clone(),
-            axis_length: config.axis_length,
             zoom_factor: config.zoom_factor,
+            footprint: get_footprint(),
         }
     }
 }
@@ -90,13 +92,15 @@ impl App{
         let terminal = Terminal::new(backend)?;
         Ok(terminal)
     }
-    fn calculate_footprint(
+
+    pub fn calculate_footprint(
+            &mut self,
             ref_transform: &Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>)
         -> Vec<(f64, f64, f64, f64)>
     {
         get_current_footprint(
             ref_transform,
-            &get_footprint())
+            &self.footprint)
     }
 
     pub fn compute_bounds(
@@ -137,6 +141,8 @@ impl App{
         let chunks = Layout::default()
             .constraints([Constraint::Percentage(100)].as_ref())
             .split(f.size());
+
+        let footprint = self.calculate_footprint(tf);
         let canvas = Canvas::default()
             .block(
                 Block::default()
@@ -155,7 +161,7 @@ impl App{
                         });
                     }
                     ctx.layer();
-                    for elem in App::calculate_footprint(tf) {
+                    for elem in &footprint {
                         ctx.draw(&Line {
                             x1: elem.0,
                             y1: elem.1,

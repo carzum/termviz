@@ -118,14 +118,14 @@ impl App{
         &mut self,
     )
     {
-        self.zoom -= self.zoom_factor;
+        self.zoom += self.zoom_factor;
     }
 
     pub fn decrease_zoom(
         &mut self,
     )
     {
-        self.zoom += self.zoom_factor;
+        self.zoom -= self.zoom_factor;
     }
 
     pub fn draw_robot<B>(

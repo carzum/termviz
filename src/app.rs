@@ -143,6 +143,8 @@ impl App{
             ["a", "Shifts the pose estimate negatively along the x axis."],
             ["q", "Rotates the pose estimate counter-clockwise."],
             ["e", "Rotates the pose estimate clockwise."],
+            ["-", "Decreases the zoom."],
+            ["=", "Increases the zoom."],
             ["h", "Shows this page."],
             [
                 "k",
@@ -230,7 +232,7 @@ impl App{
         let canvas = Canvas::default()
             .block(
                 Block::default()
-                    .title(format!("Robot View - Press h for opening the help page"))
+                    .title(format!("Robot View - Press h for help"))
                     .borders(Borders::NONE),
             )
             .x_bounds([self.bounds[0], self.bounds[1]])

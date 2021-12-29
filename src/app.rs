@@ -6,15 +6,17 @@ use rosrust_msg;
 use rustros_tf::TfListener;
 use tui::Frame;
 use tui::widgets::canvas::{Canvas, Line, Points};
-use tui::widgets::{Block, Borders};
+use tui::widgets::{Block, Borders, Paragraph, Row, Table, Wrap};
 use tui::backend::Backend;
 use std::sync::{Arc, Mutex, RwLock};
-use tui::style::Color;
-use tui::layout::{Constraint, Layout};
+use tui::style::{Color, Modifier, Style};
+use tui::layout::{Alignment, Constraint, Direction, Layout};
+use tui::text::{Span, Spans};
 use termion::terminal_size;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::raw::RawTerminal;
+use std::convert::TryFrom;
 use std::io;
 use termion::screen::AlternateScreen;
 use tui::backend::TermionBackend;
@@ -22,6 +24,7 @@ use tui::Terminal;
 
 pub enum AppModes{
     RobotView,
+    HelpPage,
 }
 
 pub fn get_frame_lines(
@@ -128,6 +131,95 @@ impl App{
         self.zoom -= self.zoom_factor;
     }
 
+    pub fn show_help<B>(&mut self, f: &mut Frame<B>)
+    where
+        B: Backend,
+    {
+        // Text
+        let key_bindings_raw = vec![
+            ["w", "Shifts the pose estimate positively along the x axis."],
+            ["s", "Shifts the pose estimate negatively along the x axis."],
+            ["d", "Shifts the pose estimate positively along the y axis."],
+            ["a", "Shifts the pose estimate negatively along the y axis."],
+            ["q", "Rotates the pose estimate counter-clockwise."],
+            ["e", "Rotates the pose estimate clockwise."],
+            ["-", "Decreases the zoom."],
+            ["=", "Increases the zoom."],
+            ["h", "Shows this page."],
+            [
+                "k",
+                "Increases the step size for manipulating the pose estimate.",
+            ],
+            [
+                "j",
+                "Decreases the step size for manipulating the pose estimate.",
+            ],
+            ["h", "Shows this page."],
+            ["Ctrl+c", "Quits the application."],
+        ];
+        let explanation_raw = vec![
+            "", // Leave some space from the top
+            "Welcome to TermViz!",
+            "",
+            "To get started, take a look at the configuration file, which is located in ~/.config/termviz/termviz.yml.",
+            "",
+            "Press any key to go back to the robot view, or Ctrl+c to exit.",
+            "", // Leave some space to the bottom
+        ];
+        let title_text = vec![Spans::from(Span::styled(
+            "TermViz",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        ))];
+
+        // Define areas from text
+        let areas = Layout::default()
+            .direction(Direction::Vertical)
+            .horizontal_margin(20)
+            .constraints(
+                [
+                    Constraint::Length(3), // Title + 2 borders
+                    Constraint::Min(u16::try_from(explanation_raw.len() + 2).unwrap()), // Text + 2 borders 
+                    Constraint::Min(u16::try_from(key_bindings_raw.len() + 2).unwrap()), // Table + header + space
+                ]
+                .as_ref(),
+            )
+            .split(f.size());
+
+        // Conversion into tui stuff
+        let key_bindings_rows = key_bindings_raw
+            .iter()
+            .map(|x| Row::Data(IntoIterator::into_iter(x)));
+
+        let explanation_spans: std::vec::Vec<tui::text::Spans> =
+            explanation_raw.into_iter().map(|x| Spans::from(Span::raw(x))).collect();
+
+        // Widget creation
+        let title = Paragraph::new(title_text)
+            .block(Block::default().borders(Borders::ALL))
+            .style(Style::default().fg(Color::White))
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: false });
+
+        let explanation = Paragraph::new(explanation_spans)
+            .block(Block::default().borders(Borders::ALL))
+            .style(Style::default().fg(Color::White))
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: false });
+
+        let key_bindings = Table::new(
+            IntoIterator::into_iter(["Key", "Function"]),
+            IntoIterator::into_iter(key_bindings_rows),
+        )
+        .block(Block::default().title(" Key binding ").borders(Borders::ALL))
+        .header_style(Style::default().fg(Color::Yellow))
+        .widths(&[Constraint::Min(6), Constraint::Min(30)])
+        .style(Style::default().fg(Color::White))
+        .column_spacing(10);
+        f.render_widget(title, areas[0]);
+        f.render_widget(explanation, areas[1]);
+        f.render_widget(key_bindings, areas[2]);
+    }
+
     pub fn draw_robot<B>(
             &mut self,
             f:&mut Frame<B>,
@@ -140,7 +232,7 @@ impl App{
         let canvas = Canvas::default()
             .block(
                 Block::default()
-                    .title(format!("Robot View"))
+                    .title(format!("Robot View - Press h for help"))
                     .borders(Borders::NONE),
             )
             .x_bounds([self.bounds[0], self.bounds[1]])

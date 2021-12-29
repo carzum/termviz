@@ -75,50 +75,73 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
     loop {
-        terminal.draw( |f| {
-            running_app.compute_bounds(&current_tf);
-            running_app.draw_robot(f, &current_tf);
-        })?;
-        match events.next()? {
-            Event::Input(input) => match input {
-                Key::Char('q') => {
-                    initial_pose_pub.send_estimate(0.0, 0.0, distance);
-                }
-                Key::Char('e') => {
-                    initial_pose_pub.send_estimate(0.0, 0.0, - distance);
-                }
-                Key::Char('w') => {
-                    initial_pose_pub.send_estimate(distance, 0.0, 0.0);
-                }
-                Key::Char('s') => {
-                    initial_pose_pub.send_estimate(- distance, 0.0, 0.0);
-                }
-                Key::Char('d') => {
-                    initial_pose_pub.send_estimate(0.0, distance, 0.0);
-                }
-                Key::Char('a') => {
-                    initial_pose_pub.send_estimate(0.0, - distance, 0.0);
-                }
-                Key::Char('-') => {
-                    running_app.decrease_zoom();
+        match running_app.mode {
+            app::AppModes::RobotView => {
+                terminal.draw( |f| {
                     running_app.compute_bounds(&current_tf);
+                    running_app.draw_robot(f, &current_tf);
+                })?;
+                match events.next()? {
+                    Event::Input(input) => match input {
+                        Key::Char('q') => {
+                            initial_pose_pub.send_estimate(0.0, 0.0, distance);
+                        }
+                        Key::Char('e') => {
+                            initial_pose_pub.send_estimate(0.0, 0.0, - distance);
+                        }
+                        Key::Char('w') => {
+                            initial_pose_pub.send_estimate(distance, 0.0, 0.0);
+                        }
+                        Key::Char('s') => {
+                            initial_pose_pub.send_estimate(- distance, 0.0, 0.0);
+                        }
+                        Key::Char('d') => {
+                            initial_pose_pub.send_estimate(0.0, distance, 0.0);
+                        }
+                        Key::Char('a') => {
+                            initial_pose_pub.send_estimate(0.0, - distance, 0.0);
+                        }
+                        Key::Char('-') => {
+                            running_app.decrease_zoom();
+                            running_app.compute_bounds(&current_tf);
+                        }
+                        Key::Char('=') => {
+                            running_app.increase_zoom();
+                            running_app.compute_bounds(&current_tf);
+                        }
+                        Key::Ctrl('c') => {
+                            break;
+                        }
+                        Key::Char('k') => {
+                            distance = distance * 2.;
+                        }
+                        Key::Char('j') => {
+                            distance = distance * 0.5;
+                        }
+                        Key::Char('h') => {
+                            running_app.mode = app::AppModes::HelpPage;
+                        }
+                        _ => {}
+                    },
+                    Event::Tick => {}
                 }
-                Key::Char('=') => {
-                    running_app.increase_zoom();
-                    running_app.compute_bounds(&current_tf);
+            }
+            app::AppModes::HelpPage => {
+                terminal.draw(|f| {
+                    running_app.show_help(f);
+                })?;
+                match events.next()? {
+                    Event::Input(input) => match input {
+                        Key::Ctrl('c') => {
+                            break;
+                        }
+                        _ => {
+                            running_app.mode = app::AppModes::RobotView;
+                        }
+                    },
+                    Event::Tick => {}
                 }
-                Key::Ctrl('c') => {
-                    break;
-                }
-                Key::Char('k') => {
-                    distance = distance * 2.;
-                }
-                Key::Char('j') => {
-                    distance = distance * 0.5;
-                }
-                _ => {}
-            },
-            Event::Tick => {}
+            }
         }
     }
     Ok(())

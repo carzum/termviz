@@ -96,10 +96,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                             initial_pose_pub.send_estimate(- distance, 0.0, 0.0);
                         }
                         Key::Char('d') => {
-                            initial_pose_pub.send_estimate(0.0, distance, 0.0);
+                            initial_pose_pub.send_estimate(0.0,- distance, 0.0);
                         }
                         Key::Char('a') => {
-                            initial_pose_pub.send_estimate(0.0, - distance, 0.0);
+                            initial_pose_pub.send_estimate(0.0, distance, 0.0);
                         }
                         Key::Char('-') => {
                             running_app.decrease_zoom();

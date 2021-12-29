@@ -1,9 +1,8 @@
 use std::sync::{Arc, RwLock};
 
+use nalgebra::geometry::{Isometry3, Quaternion, Translation3, UnitQuaternion};
 use rosrust;
 use rosrust_msg;
-use nalgebra::geometry::{Quaternion, UnitQuaternion, Isometry3, Translation3};
-
 
 pub struct InitialPosePub {
     publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::PoseWithCovarianceStamped>,
@@ -13,13 +12,13 @@ pub struct InitialPosePub {
 }
 
 impl InitialPosePub {
-    pub fn new(frame_id: &str,
-               ref_transform: Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
-               static_frame: String,
-               ) -> InitialPosePub
-    {
+    pub fn new(
+        frame_id: &str,
+        ref_transform: Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
+        static_frame: String,
+    ) -> InitialPosePub {
         let publisher = rosrust::publish("initialpose", 1).unwrap();
-        InitialPosePub{
+        InitialPosePub {
             publisher: publisher,
             _frame_id: frame_id.to_string(),
             ref_transform: ref_transform,
@@ -27,8 +26,7 @@ impl InitialPosePub {
         }
     }
 
-    pub fn send_estimate(&self, x: f64, y: f64, rotation: f64)
-    {
+    pub fn send_estimate(&self, x: f64, y: f64, rotation: f64) {
         let mut msg = rosrust_msg::geometry_msgs::PoseWithCovarianceStamped::default();
 
         // diff
@@ -36,13 +34,15 @@ impl InitialPosePub {
         let q = UnitQuaternion::from_euler_angles(0.0, 0.0, rotation);
         let isometry = Isometry3::from_parts(tra, q);
 
-
         let tf = &self.ref_transform.as_ref().read().unwrap();
-        let cur_tra = Translation3::new(tf.translation.x, tf.translation.y,
-                                        tf.translation.z);
-    // 3: z 2: y, 1: x, 0: w
+        let cur_tra = Translation3::new(tf.translation.x, tf.translation.y, tf.translation.z);
+        // 3: z 2: y, 1: x, 0: w
         let cur_rot = UnitQuaternion::new_normalize(Quaternion::new(
-                tf.rotation.w, tf.rotation.x, tf.rotation.y, tf.rotation.z));
+            tf.rotation.w,
+            tf.rotation.x,
+            tf.rotation.y,
+            tf.rotation.z,
+        ));
         let cur_isometry = Isometry3::from_parts(cur_tra, cur_rot);
 
         let iso = cur_isometry * isometry;

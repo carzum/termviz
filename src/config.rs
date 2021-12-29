@@ -1,5 +1,5 @@
 use confy;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Color {
@@ -29,18 +29,29 @@ pub struct TermvizConfig {
 
 impl Default for TermvizConfig {
     fn default() -> Self {
-        let conf= TermvizConfig {
+        let conf = TermvizConfig {
             fixed_frame: "map".to_string(),
             camera_frame: "base_link".to_string(),
-            map_topics: vec![ ListenerConfig {
+            map_topics: vec![ListenerConfig {
                 topic: "map".to_string(),
-                color: Color { r: 255, b: 255, g: 255 } }],
+                color: Color {
+                    r: 255,
+                    b: 255,
+                    g: 255,
+                },
+            }],
             laser_topics: vec![ListenerConfig {
                 topic: "scan".to_string(),
-                color: Color { r: 200, b: 0, g: 0 } }],
+                color: Color { r: 200, b: 0, g: 0 },
+            }],
             marker_array_topics: vec![ListenerConfig {
                 topic: "marker_array".to_string(),
-                color: Color { r: 20, b: 20, g: 200 } }],
+                color: Color {
+                    r: 20,
+                    b: 20,
+                    g: 200,
+                },
+            }],
             target_framerate: 30,
             axis_length: 0.5,
             visible_area: vec![-5., 5., -5., 5.],

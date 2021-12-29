@@ -137,10 +137,10 @@ impl App{
     {
         // Text
         let key_bindings_raw = vec![
-            ["w", "Shifts the pose estimate positively along the y axis."],
-            ["s", "Shifts the pose estimate negatively along the y axis."],
+            ["w", "Shifts the pose estimate positively along the x axis."],
+            ["s", "Shifts the pose estimate negatively along the x axis."],
             ["d", "Shifts the pose estimate positively along the y axis."],
-            ["a", "Shifts the pose estimate negatively along the x axis."],
+            ["a", "Shifts the pose estimate negatively along the y axis."],
             ["q", "Rotates the pose estimate counter-clockwise."],
             ["e", "Rotates the pose estimate clockwise."],
             ["-", "Decreases the zoom."],

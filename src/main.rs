@@ -29,16 +29,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Initialize listener and wait for it to come up
     let listener = Arc::new(rustros_tf::TfListener::new());
     while rosrust::is_ok() {
-        let res =
-            listener.lookup_transform("base_link", &static_frame.clone(), rosrust::Time::new());
+        let res = listener.lookup_transform(
+            &conf.robot_frame,
+            &static_frame.clone(),
+            rosrust::Time::new(),
+        );
         match res {
             Ok(_res) => break,
             Err(_e) => continue,
         };
     }
 
-    let initial_pose_pub =
-        initial_pose::InitialPosePub::new("base_link", static_frame.clone(), listener.clone());
+    let initial_pose_pub = initial_pose::InitialPosePub::new(
+        &conf.robot_frame,
+        static_frame.clone(),
+    );
 
     println!("Initiating terminal");
 
@@ -64,22 +69,28 @@ fn main() -> Result<(), Box<dyn Error>> {
                 match events.next()? {
                     Event::Input(input) => match input {
                         Key::Char('q') => {
-                            initial_pose_pub.send_estimate(0.0, 0.0, distance);
+                            running_app.move_pose_estimate(0.0, 0.0, distance);
                         }
                         Key::Char('e') => {
-                            initial_pose_pub.send_estimate(0.0, 0.0, -distance);
+                            running_app.move_pose_estimate(0.0, 0.0, -distance);
                         }
                         Key::Char('w') => {
-                            initial_pose_pub.send_estimate(distance, 0.0, 0.0);
+                            running_app.move_pose_estimate(distance, 0.0, 0.0);
                         }
                         Key::Char('s') => {
-                            initial_pose_pub.send_estimate(-distance, 0.0, 0.0);
+                            running_app.move_pose_estimate(-distance, 0.0, 0.0);
                         }
                         Key::Char('d') => {
-                            initial_pose_pub.send_estimate(0.0, distance, 0.0);
+                            running_app.move_pose_estimate(0.0, -distance, 0.0);
                         }
                         Key::Char('a') => {
-                            initial_pose_pub.send_estimate(0.0, -distance, 0.0);
+                            running_app.move_pose_estimate(0.0, distance, 0.0);
+                        }
+                        Key::Esc => {
+                            running_app.reset_pose_estimate();
+                        }
+                        Key::Char('\n') => {
+                            initial_pose_pub.send_estimate(&running_app.get_pose_estimate());
                         }
                         Key::Char('-') => {
                             running_app.decrease_zoom();

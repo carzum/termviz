@@ -40,7 +40,7 @@ impl LaserListener {
                 };
                 for (i, range) in scan.ranges.iter().enumerate() {
                     let angle = scan.angle_min + i as f32 * scan.angle_increment;
-                    let pt = transformation::transform_relative_point(
+                    let pt = transformation::transform_relative_pt(
                         &res.as_ref().unwrap().transform,
                         (
                             *range as f64 * angle.cos() as f64,

@@ -25,15 +25,12 @@ pub enum AppModes {
     HelpPage,
 }
 
-pub fn get_frame_lines(
-    tf_listener: Arc<rustros_tf::TfListener>,
-    static_frame: String,
-    axis_length: f64,
-) -> Vec<Line> {
-    let tf = tf_listener
-        .lookup_transform(&static_frame, "base_link", rosrust::Time::new())
-        .unwrap()
-        .transform;
+// 1mm and slightly less than half a degree
+fn poses_are_close(p1: &(f64, f64, f64), p2: &(f64, f64, f64)) -> bool {
+    (p1.0 - p2.0).abs() < 0.001 && (p1.1 - p2.1).abs() < 0.001 && (p1.2 - p2.2).abs() < 0.005
+}
+
+pub fn get_frame_lines(tf: &rosrust_msg::geometry_msgs::Transform, axis_length: f64) -> Vec<Line> {
     let mut result: Vec<Line> = Vec::new();
     let base_x = transformation::transform_relative_pt(&tf, (axis_length, 0.0));
     let base_y = transformation::transform_relative_pt(&tf, (0.0, axis_length));
@@ -63,9 +60,11 @@ pub struct App {
     axis_length: f64,
     zoom_factor: f64,
     static_frame: String,
-    camera_frame: String,
+    robot_frame: String,
     listeners: Listeners,
     footprint: Vec<(f64, f64)>,
+    initial_pose: (f64, f64, f64),
+    pose_estimate: (f64, f64, f64),
 }
 
 impl App {
@@ -78,6 +77,15 @@ impl App {
             config.marker_array_topics,
             config.map_topics,
         );
+        let base_link_pose = tf_listener
+            .lookup_transform(
+                &config.fixed_frame,
+                &config.robot_frame,
+                rosrust::Time::new(),
+            )
+            .unwrap()
+            .transform;
+        let initial_pose = transformation::ros_to_minimal(&base_link_pose);
         App {
             axis_length: config.axis_length,
             bounds: config.visible_area.clone(),
@@ -87,9 +95,11 @@ impl App {
             zoom: 1.0,
             zoom_factor: config.zoom_factor,
             static_frame: config.fixed_frame,
-            camera_frame: config.camera_frame,
+            robot_frame: config.robot_frame,
             footprint: get_footprint(),
             listeners: listeners,
+            initial_pose: initial_pose,
+            pose_estimate: initial_pose,
         }
     }
 
@@ -104,25 +114,13 @@ impl App {
         let terminal = Terminal::new(backend)?;
         Ok(terminal)
     }
-    fn calculate_footprint(
-        &mut self,
-        static_frame: String,
-        camera_frame: String,
-        tf_listener: Arc<rustros_tf::TfListener>,
-    ) -> Vec<(f64, f64, f64, f64)> {
-        let tf = tf_listener
-            .lookup_transform(&static_frame, &camera_frame, rosrust::Time::new())
-            .unwrap()
-            .transform;
-        get_current_footprint(tf, &self.footprint)
-    }
 
     pub fn compute_bounds(&mut self, tf_listener: Arc<rustros_tf::TfListener>) {
         // 0.5 is the height width ratio of terminal chars
         let scale_factor = self.terminal_size.0 as f64 / self.terminal_size.1 as f64 * 0.5;
         let res = tf_listener.clone().lookup_transform(
             &self.static_frame,
-            &self.camera_frame,
+            &self.robot_frame,
             rosrust::Time::new(),
         );
         match &res {
@@ -147,6 +145,21 @@ impl App {
         self.zoom -= self.zoom_factor;
     }
 
+    pub fn move_pose_estimate(&mut self, x: f64, y: f64, yaw: f64) {
+        self.pose_estimate.2 += yaw;
+        let rel_x = x * self.pose_estimate.2.cos() - y * self.pose_estimate.2.sin();
+        let rel_y = x * self.pose_estimate.2.sin() + y * self.pose_estimate.2.cos();
+        self.pose_estimate.0 += rel_x;
+        self.pose_estimate.1 += rel_y;
+    }
+
+    pub fn reset_pose_estimate(&mut self) {
+        self.pose_estimate = self.initial_pose;
+    }
+    pub fn get_pose_estimate(&self) -> rosrust_msg::geometry_msgs::Transform {
+        let (x, y, yaw) = self.pose_estimate;
+        transformation::minimal_to_ros(x, y, yaw)
+    }
     pub fn show_help<B>(&mut self, f: &mut Frame<B>)
     where
         B: Backend,
@@ -159,6 +172,8 @@ impl App {
             ["a", "Shifts the pose estimate negatively along the y axis."],
             ["q", "Rotates the pose estimate counter-clockwise."],
             ["e", "Rotates the pose estimate clockwise."],
+            ["Esc", "Resets the pose estimate."],
+            ["Enter", "Sends the pose estimate."],
             ["-", "Decreases the zoom."],
             ["=", "Increases the zoom."],
             ["h", "Shows this page."],
@@ -250,11 +265,14 @@ impl App {
             .constraints([Constraint::Percentage(100)].as_ref())
             .split(f.size());
 
-        let footprint = self.calculate_footprint(
-            self.static_frame.clone(),
-            self.camera_frame.clone(),
-            tf_listener.clone(),
-        );
+        let base_link_pose = tf_listener
+            .lookup_transform(&self.static_frame, &self.robot_frame, rosrust::Time::new())
+            .unwrap()
+            .transform;
+        self.initial_pose = transformation::ros_to_minimal(&base_link_pose);
+
+        let footprint = get_current_footprint(&base_link_pose, &self.footprint);
+
         let canvas = Canvas::default()
             .block(
                 Block::default()
@@ -299,12 +317,31 @@ impl App {
                         ctx.draw(&line);
                     }
                 }
-                for line in get_frame_lines(
-                    tf_listener.clone(),
-                    self.static_frame.clone(),
-                    self.axis_length,
-                ) {
+
+                for line in get_frame_lines(&base_link_pose, self.axis_length) {
                     ctx.draw(&line);
+                }
+                if !poses_are_close(&self.initial_pose, &self.pose_estimate) {
+                    let pose_estimate_ros = transformation::minimal_to_ros(
+                        self.pose_estimate.0,
+                        self.pose_estimate.1,
+                        self.pose_estimate.2,
+                    );
+                    let ghost_footprint =
+                        get_current_footprint(&pose_estimate_ros, &self.footprint);
+                    for elem in &ghost_footprint {
+                        ctx.draw(&Line {
+                            x1: elem.0,
+                            y1: elem.1,
+                            x2: elem.2,
+                            y2: elem.3,
+                            color: Color::Gray,
+                        });
+                    }
+                    for mut line in get_frame_lines(&pose_estimate_ros, self.axis_length) {
+                        line.color = Color::Gray;
+                        ctx.draw(&line);
+                    }
                 }
             });
         f.render_widget(canvas, chunks[0]);

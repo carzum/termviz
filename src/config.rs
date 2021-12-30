@@ -17,7 +17,7 @@ pub struct ListenerConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TermvizConfig {
     pub fixed_frame: String,
-    pub camera_frame: String,
+    pub robot_frame: String,
     pub map_topics: Vec<ListenerConfig>,
     pub laser_topics: Vec<ListenerConfig>,
     pub marker_array_topics: Vec<ListenerConfig>,
@@ -31,7 +31,7 @@ impl Default for TermvizConfig {
     fn default() -> Self {
         let conf = TermvizConfig {
             fixed_frame: "map".to_string(),
-            camera_frame: "base_link".to_string(),
+            robot_frame: "base_link".to_string(),
             map_topics: vec![ListenerConfig {
                 topic: "map".to_string(),
                 color: Color {

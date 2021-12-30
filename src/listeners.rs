@@ -3,7 +3,7 @@ use crate::laser;
 use crate::map;
 use crate::marker;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct Listeners {
     pub lasers: Vec<laser::LaserListener>,
@@ -13,7 +13,7 @@ pub struct Listeners {
 
 impl Listeners {
     pub fn new(
-        tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
+        tf_listener: Arc<rustros_tf::TfListener>,
         static_frame: String,
         laser_topics: Vec<ListenerConfig>,
         marker_topics: Vec<ListenerConfig>,

@@ -3,8 +3,6 @@ use crate::transformation;
 use rosrust;
 use rosrust_msg;
 
-use std::sync::{Arc, RwLock};
-
 const DEFAULT_FOOTPRINT: [[f64; 2]; 4] =
     [[0.01, 0.01], [-0.01, 0.01], [-0.01, -0.01], [0.01, -0.01]];
 
@@ -47,10 +45,10 @@ pub fn get_footprint() -> Vec<(f64, f64)> {
 }
 
 pub fn get_current_footprint(
-    ref_transform: &Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
+    ref_transform: rosrust_msg::geometry_msgs::Transform,
     footprint_poly: &Vec<(f64, f64)>,
 ) -> Vec<(f64, f64, f64, f64)> {
-    let tf = &ref_transform.as_ref().read().unwrap();
+    let tf = ref_transform;
     let mut result: Vec<(f64, f64, f64, f64)> = Vec::new();
     for i in 0..footprint_poly.len() - 1 {
         let pt0 = transformation::transform_relative_pt(&tf, footprint_poly[i]);

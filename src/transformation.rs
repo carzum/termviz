@@ -1,7 +1,7 @@
 use nalgebra::geometry::{Isometry3, Point3, Quaternion, Translation3, UnitQuaternion};
 
 pub fn transform_relative_pt(
-    tf: &std::sync::RwLockReadGuard<rosrust_msg::geometry_msgs::Transform>,
+    tf: &rosrust_msg::geometry_msgs::Transform,
     pt: (f64, f64),
 ) -> (f64, f64) {
     let tra = Translation3::new(tf.translation.x, tf.translation.y, tf.translation.z);

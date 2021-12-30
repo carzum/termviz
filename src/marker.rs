@@ -1,5 +1,5 @@
 use crate::config::ListenerConfig;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use rosrust;
 use rustros_tf::transforms::nalgebra::geometry::Point3;
@@ -63,45 +63,43 @@ pub fn marker_2_rectancle(
 pub struct MarkerListener {
     pub config: ListenerConfig,
     pub lines: Arc<RwLock<Vec<Line>>>,
-    _tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
-    _static_frame: String,
+    _tf_listener: Arc<rustros_tf::TfListener>,
     _subscriber: rosrust::Subscriber,
 }
 
 impl MarkerListener {
     pub fn new(
         config: ListenerConfig,
-        tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
+        tf_listener: Arc<rustros_tf::TfListener>,
         static_frame: String,
     ) -> MarkerListener {
         let blines = Arc::new(RwLock::new(Vec::<Line>::new()));
         let loop_lines = blines.clone();
+        let local_listener = tf_listener.clone();
 
-        let marker_listener = tf_listener.clone();
-        let moved_static = static_frame.clone();
-        let sub = rosrust::subscribe(
+        let _sub = rosrust::subscribe(
             &config.topic,
             2,
             move |msg: rosrust_msg::visualization_msgs::MarkerArray| {
-                let listener = marker_listener.lock().unwrap();
                 for marker in msg.markers {
                     if marker.action != 0 {
                         continue;
                     }
-                    let res = &listener.lookup_transform(
+                    let res = &local_listener.clone().lookup_transform(
                         &marker.header.frame_id,
-                        &moved_static,
+                        &static_frame.clone(),
                         marker.header.stamp,
                     );
-                    match res {
+                    match &res {
                         Ok(res) => res,
                         Err(_e) => continue,
                     };
 
-                    let tf = &res.as_ref().unwrap().transform;
-
                     let mut _lines = loop_lines.write().unwrap();
-                    _lines.extend(marker_2_rectancle(&marker, tf));
+                    _lines.extend(marker_2_rectancle(
+                        &marker,
+                        &res.as_ref().unwrap().transform,
+                    ));
                 }
             },
         )
@@ -111,8 +109,7 @@ impl MarkerListener {
             config,
             lines: blines,
             _tf_listener: tf_listener,
-            _static_frame: static_frame.to_string(),
-            _subscriber: sub,
+            _subscriber: _sub,
         }
     }
 

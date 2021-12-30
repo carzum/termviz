@@ -1,6 +1,6 @@
 use crate::config::ListenerConfig;
 use crate::transformation;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use nalgebra::geometry::{Isometry3, Point3, Quaternion, Translation3, UnitQuaternion};
 
@@ -10,7 +10,7 @@ use rustros_tf;
 pub struct MapListener {
     pub config: ListenerConfig,
     pub points: Arc<RwLock<Vec<(f64, f64)>>>,
-    _tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
+    _tf_listener: Arc<rustros_tf::TfListener>,
     _static_frame: String,
     _subscriber: rosrust::Subscriber,
 }
@@ -18,26 +18,28 @@ pub struct MapListener {
 impl MapListener {
     pub fn new(
         config: ListenerConfig,
-        tf_listener: Arc<Mutex<rustros_tf::TfListener>>,
+        tf_listener: Arc<rustros_tf::TfListener>,
         static_frame: String,
     ) -> MapListener {
         let occ_points = Arc::new(RwLock::new(Vec::<(f64, f64)>::new()));
         let cb_occ_points = occ_points.clone();
-        let map_listener = tf_listener.clone();
         let str_ = static_frame.clone();
-        let map_sub = rosrust::subscribe(
+        let local_listener = tf_listener.clone();
+
+        let _map_sub = rosrust::subscribe(
             &config.topic,
             1,
             move |map: rosrust_msg::nav_msgs::OccupancyGrid| {
                 let mut points: Vec<(f64, f64)> = Vec::new();
-                let map_listener = map_listener.lock().unwrap();
-                let res =
-                    &map_listener.lookup_transform(&str_, &map.header.frame_id, map.header.stamp);
-                match res {
+                let res = local_listener.clone().lookup_transform(
+                    &str_,
+                    &map.header.frame_id,
+                    map.header.stamp,
+                );
+                match &res {
                     Ok(res) => res,
                     Err(_e) => return,
                 };
-                let tf = &res.as_ref().unwrap().transform;
 
                 let tra = Translation3::new(
                     map.info.origin.position.x,
@@ -62,7 +64,7 @@ impl MapListener {
                             0.,
                         ));
                         let global_point = transformation::transform_relative_point(
-                            tf,
+                            &res.as_ref().unwrap().transform,
                             (trans_point[0], trans_point[1]),
                         );
                         if pt > &0 {
@@ -81,7 +83,7 @@ impl MapListener {
             points: occ_points,
             _tf_listener: tf_listener,
             _static_frame: static_frame.to_string(),
-            _subscriber: map_sub,
+            _subscriber: _map_sub,
         }
     }
 }

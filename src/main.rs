@@ -8,13 +8,11 @@ mod listeners;
 mod map;
 mod marker;
 mod transformation;
-use std::sync::{Arc, Mutex, RwLock};
-use std::thread;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use event::{Config, Event, Events};
 use rosrust;
-use rosrust_msg;
 use rustros_tf;
 use std::error::Error;
 use termion::event::Key;
@@ -28,46 +26,31 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let static_frame = conf.fixed_frame;
 
-    let current_tf = Arc::new(RwLock::new(rosrust_msg::geometry_msgs::Transform::default()));
-    let cb_tf = current_tf.clone();
-
-    println!("spawning tf listener");
-    let listener = Arc::new(Mutex::new(rustros_tf::TfListener::new()));
-    let tf_listener = listener.clone();
-    let sleep = 1000 / conf.target_framerate as u64;
-    let _static_frame = static_frame.clone();
-    let _tf_handle = thread::spawn(move || {
-        // update robot position thread
-        while rosrust::is_ok() {
-            {
-                let tf_listener = tf_listener.lock().unwrap();
-                let res = &tf_listener.lookup_transform(
-                    &_static_frame,
-                    "base_link",
-                    rosrust::Time::new(),
-                );
-                if res.is_ok() {
-                    let mut cb_tf = cb_tf.write().unwrap();
-                    *cb_tf = res.as_ref().unwrap().transform.clone();
-                }
-            }
-            thread::sleep(Duration::from_millis(sleep));
-        }
-    });
+    // Initialize listener and wait for it to come up
+    let listener = Arc::new(rustros_tf::TfListener::new());
+    while rosrust::is_ok() {
+        let res =
+            listener.lookup_transform("base_link", &static_frame.clone(), rosrust::Time::new());
+        match res {
+            Ok(_res) => break,
+            Err(_e) => continue,
+        };
+    }
 
     let initial_pose_pub =
-        initial_pose::InitialPosePub::new("initial_pose", current_tf.clone(), static_frame.clone());
+        initial_pose::InitialPosePub::new("base_link", static_frame.clone(), listener.clone());
 
     println!("Initiating terminal");
 
     let config = Config {
-        tick_rate: Duration::from_millis(sleep),
+        tick_rate: Duration::from_millis(1000 / conf.target_framerate as u64),
         ..Default::default()
     };
     let events = Events::with_config(config);
 
     let mut distance = 0.1;
-    let default_app_config = Arc::new(Mutex::new(app::App::default()));
+    let default_app_config = Arc::new(Mutex::new(app::App::new(listener.clone())));
+
     let mut running_app = default_app_config.lock().unwrap();
     let mut terminal = running_app.init_terminal().unwrap();
 
@@ -75,8 +58,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         match running_app.mode {
             app::AppModes::RobotView => {
                 terminal.draw(|f| {
-                    running_app.compute_bounds(&current_tf);
-                    running_app.draw_robot(f, &current_tf);
+                    running_app.compute_bounds(listener.clone());
+                    running_app.draw_robot(f, listener.clone());
                 })?;
                 match events.next()? {
                     Event::Input(input) => match input {
@@ -93,18 +76,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                             initial_pose_pub.send_estimate(-distance, 0.0, 0.0);
                         }
                         Key::Char('d') => {
-                            initial_pose_pub.send_estimate(0.0, -distance, 0.0);
+                            initial_pose_pub.send_estimate(0.0, distance, 0.0);
                         }
                         Key::Char('a') => {
-                            initial_pose_pub.send_estimate(0.0, distance, 0.0);
+                            initial_pose_pub.send_estimate(0.0, -distance, 0.0);
                         }
                         Key::Char('-') => {
                             running_app.decrease_zoom();
-                            running_app.compute_bounds(&current_tf);
+                            running_app.compute_bounds(listener.clone());
                         }
                         Key::Char('=') => {
                             running_app.increase_zoom();
-                            running_app.compute_bounds(&current_tf);
+                            running_app.compute_bounds(listener.clone());
                         }
                         Key::Ctrl('c') => {
                             break;

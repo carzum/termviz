@@ -2,11 +2,9 @@ use crate::config::get_config;
 use crate::footprint::{get_current_footprint, get_footprint};
 use crate::listeners::Listeners;
 use crate::transformation;
-use rosrust_msg;
-use rustros_tf::TfListener;
 use std::convert::TryFrom;
 use std::io;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::raw::RawTerminal;
@@ -28,10 +26,14 @@ pub enum AppModes {
 }
 
 pub fn get_frame_lines(
-    ref_transform: &Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
+    tf_listener: Arc<rustros_tf::TfListener>,
+    static_frame: String,
     axis_length: f64,
 ) -> Vec<Line> {
-    let tf = &ref_transform.as_ref().read().unwrap();
+    let tf = tf_listener
+        .lookup_transform(&static_frame, "base_link", rosrust::Time::new())
+        .unwrap()
+        .transform;
     let mut result: Vec<Line> = Vec::new();
     let base_x = transformation::transform_relative_pt(&tf, (axis_length, 0.0));
     let base_y = transformation::transform_relative_pt(&tf, (0.0, axis_length));
@@ -54,40 +56,43 @@ pub fn get_frame_lines(
 
 pub struct App {
     pub mode: AppModes,
-    listeners: Listeners,
     terminal_size: (u16, u16),
     initial_bounds: Vec<f64>,
     bounds: Vec<f64>,
     zoom: f64,
     axis_length: f64,
     zoom_factor: f64,
+    static_frame: String,
+    camera_frame: String,
+    listeners: Listeners,
     footprint: Vec<(f64, f64)>,
 }
 
-impl Default for App {
-    fn default() -> Self {
+impl App {
+    pub fn new(tf_listener: Arc<rustros_tf::TfListener>) -> App {
         let config = get_config().unwrap();
+        let listeners = Listeners::new(
+            tf_listener.clone(),
+            config.fixed_frame.clone(),
+            config.laser_topics,
+            config.marker_array_topics,
+            config.map_topics,
+        );
         App {
             axis_length: config.axis_length,
             bounds: config.visible_area.clone(),
-            listeners: Listeners::new(
-                Arc::new(Mutex::new(TfListener::new())),
-                config.fixed_frame,
-                config.laser_topics,
-                config.marker_array_topics,
-                config.map_topics,
-            ),
             initial_bounds: config.visible_area.clone(),
             mode: AppModes::RobotView,
             terminal_size: terminal_size().unwrap(),
             zoom: 1.0,
             zoom_factor: config.zoom_factor,
+            static_frame: config.fixed_frame,
+            camera_frame: config.camera_frame,
             footprint: get_footprint(),
+            listeners: listeners,
         }
     }
-}
 
-impl App {
     pub fn init_terminal(
         &mut self,
     ) -> io::Result<Terminal<TermionBackend<AlternateScreen<MouseTerminal<RawTerminal<io::Stdout>>>>>>
@@ -99,26 +104,38 @@ impl App {
         let terminal = Terminal::new(backend)?;
         Ok(terminal)
     }
-
-    pub fn calculate_footprint(
+    fn calculate_footprint(
         &mut self,
-        ref_transform: &Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
+        static_frame: String,
+        camera_frame: String,
+        tf_listener: Arc<rustros_tf::TfListener>,
     ) -> Vec<(f64, f64, f64, f64)> {
-        get_current_footprint(ref_transform, &self.footprint)
+        let tf = tf_listener
+            .lookup_transform(&static_frame, &camera_frame, rosrust::Time::new())
+            .unwrap()
+            .transform;
+        get_current_footprint(tf, &self.footprint)
     }
 
-    pub fn compute_bounds(
-        &mut self,
-        ref_transform: &Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
-    ) {
+    pub fn compute_bounds(&mut self, tf_listener: Arc<rustros_tf::TfListener>) {
         // 0.5 is the height width ratio of terminal chars
         let scale_factor = self.terminal_size.0 as f64 / self.terminal_size.1 as f64 * 0.5;
-        let tf = &ref_transform.as_ref().read().unwrap();
+        let res = tf_listener.clone().lookup_transform(
+            &self.static_frame,
+            &self.camera_frame,
+            rosrust::Time::new(),
+        );
+        match &res {
+            Ok(res) => res,
+            Err(_e) => return,
+        };
+        let tf = res.as_ref().unwrap();
+
         self.bounds = vec![
-            tf.translation.x + self.initial_bounds[0] / self.zoom * scale_factor,
-            tf.translation.x + self.initial_bounds[1] / self.zoom * scale_factor,
-            tf.translation.y + self.initial_bounds[2] / self.zoom,
-            tf.translation.y + self.initial_bounds[3] / self.zoom,
+            tf.transform.translation.x + self.initial_bounds[0] / self.zoom * scale_factor,
+            tf.transform.translation.x + self.initial_bounds[1] / self.zoom * scale_factor,
+            tf.transform.translation.y + self.initial_bounds[2] / self.zoom,
+            tf.transform.translation.y + self.initial_bounds[3] / self.zoom,
         ];
     }
 
@@ -225,18 +242,19 @@ impl App {
         f.render_widget(key_bindings, areas[2]);
     }
 
-    pub fn draw_robot<B>(
-        &mut self,
-        f: &mut Frame<B>,
-        tf: &Arc<RwLock<rosrust_msg::geometry_msgs::Transform>>,
-    ) where
+    pub fn draw_robot<B>(&mut self, f: &mut Frame<B>, tf_listener: Arc<rustros_tf::TfListener>)
+    where
         B: Backend,
     {
         let chunks = Layout::default()
             .constraints([Constraint::Percentage(100)].as_ref())
             .split(f.size());
 
-        let footprint = self.calculate_footprint(tf);
+        let footprint = self.calculate_footprint(
+            self.static_frame.clone(),
+            self.camera_frame.clone(),
+            tf_listener.clone(),
+        );
         let canvas = Canvas::default()
             .block(
                 Block::default()
@@ -281,7 +299,11 @@ impl App {
                         ctx.draw(&line);
                     }
                 }
-                for line in get_frame_lines(tf, self.axis_length) {
+                for line in get_frame_lines(
+                    tf_listener.clone(),
+                    self.static_frame.clone(),
+                    self.axis_length,
+                ) {
                     ctx.draw(&line);
                 }
             });

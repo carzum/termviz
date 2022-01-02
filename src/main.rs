@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         match running_app.mode {
-            app::AppModes::RobotView => {
+            app::AppModes::RobotView | app::AppModes::SendPose => {
                 terminal.draw(|f| {
                     running_app.compute_bounds(listener.clone());
                     running_app.draw_robot(f, listener.clone());
@@ -69,28 +69,36 @@ fn main() -> Result<(), Box<dyn Error>> {
                 match events.next()? {
                     Event::Input(input) => match input {
                         Key::Char('q') => {
+                            running_app.mode = app::AppModes::SendPose;
                             running_app.move_pose_estimate(0.0, 0.0, distance);
                         }
                         Key::Char('e') => {
+                            running_app.mode = app::AppModes::SendPose;
                             running_app.move_pose_estimate(0.0, 0.0, -distance);
                         }
                         Key::Char('w') => {
+                            running_app.mode = app::AppModes::SendPose;
                             running_app.move_pose_estimate(distance, 0.0, 0.0);
                         }
                         Key::Char('s') => {
+                            running_app.mode = app::AppModes::SendPose;
                             running_app.move_pose_estimate(-distance, 0.0, 0.0);
                         }
                         Key::Char('d') => {
+                            running_app.mode = app::AppModes::SendPose;
                             running_app.move_pose_estimate(0.0, -distance, 0.0);
                         }
                         Key::Char('a') => {
+                            running_app.mode = app::AppModes::SendPose;
                             running_app.move_pose_estimate(0.0, distance, 0.0);
                         }
                         Key::Esc => {
-                            running_app.reset_pose_estimate();
+                            running_app.mode = app::AppModes::RobotView;
+                            // running_app.reset_pose_estimate();
                         }
                         Key::Char('\n') => {
                             initial_pose_pub.send_estimate(&running_app.get_pose_estimate());
+                            running_app.mode = app::AppModes::RobotView;  
                         }
                         Key::Char('-') => {
                             running_app.decrease_zoom();

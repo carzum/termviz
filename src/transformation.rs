@@ -1,4 +1,5 @@
-use nalgebra::geometry::{Isometry3, Point3, Quaternion, Translation3, UnitQuaternion};
+use nalgebra::geometry::{Isometry2, Isometry3, Point3, Quaternion, Translation3, UnitQuaternion};
+use nalgebra::Vector2;
 
 pub fn transform_relative_pt(
     tf: &rosrust_msg::geometry_msgs::Transform,
@@ -16,7 +17,7 @@ pub fn transform_relative_pt(
     (transformed_point.x, transformed_point.y)
 }
 
-pub fn ros_to_minimal(tf: &rosrust_msg::geometry_msgs::Transform) -> (f64, f64, f64) {
+pub fn ros_to_iso2d(tf: &rosrust_msg::geometry_msgs::Transform) -> Isometry2<f64> {
     let rot = UnitQuaternion::new_normalize(Quaternion::new(
         tf.rotation.w,
         tf.rotation.x,
@@ -24,13 +25,17 @@ pub fn ros_to_minimal(tf: &rosrust_msg::geometry_msgs::Transform) -> (f64, f64, 
         tf.rotation.z,
     ));
     let (_roll, _pitch, yaw) = rot.euler_angles();
-    (tf.translation.x, tf.translation.y, yaw)
+    Isometry2::new(Vector2::new(tf.translation.x, tf.translation.y), yaw)
 }
 
-pub fn minimal_to_ros(x: f64, y: f64, yaw: f64) -> rosrust_msg::geometry_msgs::Transform {
-    let rot = UnitQuaternion::from_euler_angles(0.0, 0.0, yaw);
+pub fn iso2d_to_ros(tf: &Isometry2<f64>) -> rosrust_msg::geometry_msgs::Transform {
+    let rot = UnitQuaternion::from_euler_angles(0.0, 0.0, tf.rotation.angle());
     rosrust_msg::geometry_msgs::Transform {
-        translation: rosrust_msg::geometry_msgs::Vector3 { x: x, y: y, z: 0.0 },
+        translation: rosrust_msg::geometry_msgs::Vector3 {
+            x: tf.translation.x,
+            y: tf.translation.y,
+            z: 0.0,
+        },
         rotation: rosrust_msg::geometry_msgs::Quaternion {
             x: rot.quaternion()[0],
             y: rot.quaternion()[1],

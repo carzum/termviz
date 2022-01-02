@@ -2,6 +2,7 @@ use crate::config::get_config;
 use crate::footprint::{get_current_footprint, get_footprint};
 use crate::listeners::Listeners;
 use crate::transformation;
+use nalgebra::{Isometry2, Vector2};
 use std::convert::TryFrom;
 use std::io;
 use std::sync::Arc;
@@ -22,12 +23,8 @@ use tui::Terminal;
 
 pub enum AppModes {
     RobotView,
+    SendPose,
     HelpPage,
-}
-
-// 1mm and slightly less than half a degree
-fn poses_are_close(p1: &(f64, f64, f64), p2: &(f64, f64, f64)) -> bool {
-    (p1.0 - p2.0).abs() < 0.001 && (p1.1 - p2.1).abs() < 0.001 && (p1.2 - p2.2).abs() < 0.005
 }
 
 pub fn get_frame_lines(tf: &rosrust_msg::geometry_msgs::Transform, axis_length: f64) -> Vec<Line> {
@@ -63,8 +60,8 @@ pub struct App {
     robot_frame: String,
     listeners: Listeners,
     footprint: Vec<(f64, f64)>,
-    initial_pose: (f64, f64, f64),
-    pose_estimate: (f64, f64, f64),
+    initial_pose: Isometry2<f64>,
+    pose_estimate: Isometry2<f64>,
 }
 
 impl App {
@@ -85,7 +82,7 @@ impl App {
             )
             .unwrap()
             .transform;
-        let initial_pose = transformation::ros_to_minimal(&base_link_pose);
+        let initial_pose = transformation::ros_to_iso2d(&base_link_pose);
         App {
             axis_length: config.axis_length,
             bounds: config.visible_area.clone(),
@@ -98,7 +95,7 @@ impl App {
             robot_frame: config.robot_frame,
             footprint: get_footprint(),
             listeners: listeners,
-            initial_pose: initial_pose,
+            initial_pose: initial_pose.clone(),
             pose_estimate: initial_pose,
         }
     }
@@ -146,19 +143,14 @@ impl App {
     }
 
     pub fn move_pose_estimate(&mut self, x: f64, y: f64, yaw: f64) {
-        self.pose_estimate.2 += yaw;
-        let rel_x = x * self.pose_estimate.2.cos() - y * self.pose_estimate.2.sin();
-        let rel_y = x * self.pose_estimate.2.sin() + y * self.pose_estimate.2.cos();
-        self.pose_estimate.0 += rel_x;
-        self.pose_estimate.1 += rel_y;
+        let new_yaw = self.pose_estimate.rotation.angle() + yaw;
+        let new_x = x * new_yaw.cos() - y * new_yaw.sin() + self.pose_estimate.translation.x;
+        let new_y = x * new_yaw.sin() + y * new_yaw.cos() + self.pose_estimate.translation.y;
+        self.pose_estimate = Isometry2::new(Vector2::new(new_x, new_y), new_yaw);
     }
 
-    pub fn reset_pose_estimate(&mut self) {
-        self.pose_estimate = self.initial_pose;
-    }
     pub fn get_pose_estimate(&self) -> rosrust_msg::geometry_msgs::Transform {
-        let (x, y, yaw) = self.pose_estimate;
-        transformation::minimal_to_ros(x, y, yaw)
+        transformation::iso2d_to_ros(&self.pose_estimate)
     }
     pub fn show_help<B>(&mut self, f: &mut Frame<B>)
     where
@@ -269,8 +261,10 @@ impl App {
             .lookup_transform(&self.static_frame, &self.robot_frame, rosrust::Time::new())
             .unwrap()
             .transform;
-        self.initial_pose = transformation::ros_to_minimal(&base_link_pose);
-
+        self.initial_pose = transformation::ros_to_iso2d(&base_link_pose);
+        if matches!(self.mode, AppModes::RobotView) {
+            self.pose_estimate = self.initial_pose.clone();
+        }
         let footprint = get_current_footprint(&base_link_pose, &self.footprint);
 
         let canvas = Canvas::default()
@@ -321,15 +315,9 @@ impl App {
                 for line in get_frame_lines(&base_link_pose, self.axis_length) {
                     ctx.draw(&line);
                 }
-                if !poses_are_close(&self.initial_pose, &self.pose_estimate) {
-                    let pose_estimate_ros = transformation::minimal_to_ros(
-                        self.pose_estimate.0,
-                        self.pose_estimate.1,
-                        self.pose_estimate.2,
-                    );
-                    let ghost_footprint =
-                        get_current_footprint(&pose_estimate_ros, &self.footprint);
-                    for elem in &ghost_footprint {
+                if matches!(self.mode, AppModes::SendPose) {
+                    let pose_estimate_ros = transformation::iso2d_to_ros(&self.pose_estimate);
+                    for elem in &get_current_footprint(&pose_estimate_ros, &self.footprint) {
                         ctx.draw(&Line {
                             x1: elem.0,
                             y1: elem.1,

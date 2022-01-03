@@ -45,10 +45,9 @@ pub fn get_footprint() -> Vec<(f64, f64)> {
 }
 
 pub fn get_current_footprint(
-    ref_transform: rosrust_msg::geometry_msgs::Transform,
+    tf: &rosrust_msg::geometry_msgs::Transform,
     footprint_poly: &Vec<(f64, f64)>,
 ) -> Vec<(f64, f64, f64, f64)> {
-    let tf = ref_transform;
     let mut result: Vec<(f64, f64, f64, f64)> = Vec::new();
     for i in 0..footprint_poly.len() - 1 {
         let pt0 = transformation::transform_relative_pt(&tf, footprint_poly[i]);

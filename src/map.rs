@@ -63,7 +63,7 @@ impl MapListener {
                             line as f64 * map.info.resolution as f64,
                             0.,
                         ));
-                        let global_point = transformation::transform_relative_point(
+                        let global_point = transformation::transform_relative_pt(
                             &res.as_ref().unwrap().transform,
                             (trans_point[0], trans_point[1]),
                         );

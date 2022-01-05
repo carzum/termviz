@@ -1,5 +1,6 @@
 use confy;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Color {
@@ -15,6 +16,31 @@ pub struct ListenerConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct TeleopConfig {
+    pub key_mapping: HashMap<String, (String, i8)>,
+    pub increment: f64,
+    pub cmd_vel_topic: String,
+}
+
+impl Default for TeleopConfig {
+    fn default() -> TeleopConfig {
+        let default_mapping = HashMap::from([
+            ("w".to_string(), ("x".to_string(), 1)),
+            ("s".to_string(), ("x".to_string(), -1)),
+            ("q".to_string(), ("y".to_string(), 1)),
+            ("e".to_string(), ("y".to_string(), -1)),
+            ("a".to_string(), ("theta".to_string(), 1)),
+            ("d".to_string(), ("theta".to_string(), -1)),
+        ]);
+        TeleopConfig {
+            key_mapping: default_mapping,
+            increment: 0.1,
+            cmd_vel_topic: "cmd_vel".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TermvizConfig {
     pub fixed_frame: String,
     pub robot_frame: String,
@@ -25,6 +51,7 @@ pub struct TermvizConfig {
     pub axis_length: f64,
     pub visible_area: Vec<f64>, //Borders of map from center in Meter
     pub zoom_factor: f64,
+    pub teleop_key_mapping: TeleopConfig,
 }
 
 impl Default for TermvizConfig {
@@ -56,6 +83,7 @@ impl Default for TermvizConfig {
             axis_length: 0.5,
             visible_area: vec![-5., 5., -5., 5.],
             zoom_factor: 0.1,
+            teleop_key_mapping: TeleopConfig::default(),
         };
         let res = confy::store("termviz", "termviz", &conf);
         match res {

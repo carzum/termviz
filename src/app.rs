@@ -6,6 +6,7 @@ use nalgebra::{Isometry2, Vector2};
 use std::convert::TryFrom;
 use std::io;
 use std::sync::Arc;
+use strum_macros::AsRefStr;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::raw::RawTerminal;
@@ -18,13 +19,14 @@ use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::canvas::{Canvas, Line, Points};
 use tui::widgets::{Block, Borders, Paragraph, Row, Table, Wrap};
-use tui::Frame;
-use tui::Terminal;
+use tui::{Frame, Terminal};
 
+#[derive(PartialEq, AsRefStr)]
 pub enum AppModes {
     RobotView,
     SendPose,
     HelpPage,
+    Teleoperate,
 }
 
 pub fn get_frame_lines(tf: &rosrust_msg::geometry_msgs::Transform, axis_length: f64) -> Vec<Line> {
@@ -164,6 +166,7 @@ impl App {
             ["a", "Shifts the pose estimate negatively along the y axis."],
             ["q", "Rotates the pose estimate counter-clockwise."],
             ["e", "Rotates the pose estimate clockwise."],
+            ["t", "Enter/Exit teleoperating mode"],
             ["Esc", "Resets the pose estimate."],
             ["Enter", "Sends the pose estimate."],
             ["-", "Decreases the zoom."],
@@ -185,6 +188,10 @@ impl App {
             "Welcome to TermViz!",
             "",
             "To get started, take a look at the configuration file, which is located in ~/.config/termviz/termviz.yml.",
+            "",
+            "Press 't' to enter/exit teleoperating mode, where the configured keys (default wasd qe) are used to move the robot. \
+            When entering the mode, a zero velocity vector is sent, stopping the robot. \
+            Additionally, any button but the configured ones will stop the robot",
             "",
             "Press any key to go back to the robot view, or Ctrl+c to exit.",
             "", // Leave some space to the bottom
@@ -270,7 +277,7 @@ impl App {
         let canvas = Canvas::default()
             .block(
                 Block::default()
-                    .title(format!("Robot View - Press h for help"))
+                    .title(format!("{} - Press h for help", self.mode.as_ref()))
                     .borders(Borders::NONE),
             )
             .x_bounds([self.bounds[0], self.bounds[1]])

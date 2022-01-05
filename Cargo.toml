@@ -16,6 +16,8 @@ serde = { version = "*", features = ["derive"] }
 serde_derive = "*"
 termion = "1.5"
 tui = "0.10.0"
+strum = "0.23"
+strum_macros = "0.23"
 
 [dependencies.confy]
 version = "0.4.0"

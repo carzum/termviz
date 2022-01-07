@@ -81,6 +81,8 @@ impl MarkerListener {
             &config.topic,
             2,
             move |msg: rosrust_msg::visualization_msgs::MarkerArray| {
+                let mut _lines = loop_lines.write().unwrap();
+                _lines.clear();
                 for marker in msg.markers {
                     if marker.action != 0 {
                         continue;
@@ -95,7 +97,6 @@ impl MarkerListener {
                         Err(_e) => continue,
                     };
 
-                    let mut _lines = loop_lines.write().unwrap();
                     _lines.extend(marker_2_rectancle(
                         &marker,
                         &res.as_ref().unwrap().transform,

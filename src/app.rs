@@ -189,9 +189,10 @@ impl App {
             "",
             "To get started, take a look at the configuration file, which is located in ~/.config/termviz/termviz.yml.",
             "",
-            "Enter 't' to enter/exit teleoperating mode where the configured keys are used move the robot. \
-            Default is 'wasd qe', when entering the mode a of zero velocity vector is sent, stopping the robot,\
-            any button but the configured ones will stop the robot",
+            "Press 't' to enter/exit teleoperating mode, where the configured keys (default wasd qe) are used to move the robot. \
+            When entering the mode, a zero velocity vector is sent, stopping the robot. \
+            Additionally, any button but the configured ones will stop the robot",
+            "",
             "Press any key to go back to the robot view, or Ctrl+c to exit.",
             "", // Leave some space to the bottom
         ];

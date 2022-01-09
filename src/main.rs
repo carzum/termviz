@@ -7,6 +7,7 @@ mod laser;
 mod listeners;
 mod map;
 mod marker;
+mod teleop;
 mod transformation;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -40,10 +41,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
     }
 
-    let initial_pose_pub = initial_pose::InitialPosePub::new(
-        &conf.robot_frame,
-        static_frame.clone(),
-    );
+    let initial_pose_pub =
+        initial_pose::InitialPosePub::new(&conf.robot_frame, static_frame.clone());
 
     println!("Initiating terminal");
 
@@ -51,6 +50,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         tick_rate: Duration::from_millis(1000 / conf.target_framerate as u64),
         ..Default::default()
     };
+    let mut teleoperator = teleop::Teleoperator::new(conf.teleop_key_mapping);
     let events = Events::with_config(config);
 
     let mut distance = 0.1;
@@ -61,67 +61,101 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         match running_app.mode {
-            app::AppModes::RobotView | app::AppModes::SendPose => {
+            app::AppModes::RobotView | app::AppModes::SendPose | app::AppModes::Teleoperate => {
                 terminal.draw(|f| {
                     running_app.compute_bounds(listener.clone());
                     running_app.draw_robot(f, listener.clone());
+                    match running_app.mode {
+                        app::AppModes::Teleoperate => {
+                            teleoperator.run();
+                        }
+                        _ => (),
+                    }
                 })?;
                 match events.next()? {
-                    Event::Input(input) => match input {
-                        Key::Char('q') => {
-                            running_app.mode = app::AppModes::SendPose;
-                            running_app.move_pose_estimate(0.0, 0.0, distance);
+                    Event::Input(input) => {
+                        if running_app.mode == app::AppModes::Teleoperate {
+                            teleoperator.handle_input_from_key(input);
                         }
-                        Key::Char('e') => {
-                            running_app.mode = app::AppModes::SendPose;
-                            running_app.move_pose_estimate(0.0, 0.0, -distance);
+                        match input {
+                            Key::Char('q') => {
+                                if running_app.mode != app::AppModes::Teleoperate {
+                                    running_app.mode = app::AppModes::SendPose;
+                                    running_app.move_pose_estimate(0.0, 0.0, distance);
+                                }
+                            }
+                            Key::Char('e') => {
+                                if running_app.mode != app::AppModes::Teleoperate {
+                                    running_app.mode = app::AppModes::SendPose;
+                                    running_app.move_pose_estimate(0.0, 0.0, -distance);
+                                }
+                            }
+                            Key::Char('w') => {
+                                if running_app.mode != app::AppModes::Teleoperate {
+                                    running_app.mode = app::AppModes::SendPose;
+                                    running_app.move_pose_estimate(distance, 0.0, 0.0);
+                                }
+                            }
+                            Key::Char('s') => {
+                                if running_app.mode != app::AppModes::Teleoperate {
+                                    running_app.mode = app::AppModes::SendPose;
+                                    running_app.move_pose_estimate(-distance, 0.0, 0.0);
+                                }
+                            }
+                            Key::Char('d') => {
+                                if running_app.mode != app::AppModes::Teleoperate {
+                                    running_app.mode = app::AppModes::SendPose;
+                                    running_app.move_pose_estimate(0.0, -distance, 0.0);
+                                }
+                            }
+                            Key::Char('a') => {
+                                if running_app.mode != app::AppModes::Teleoperate {
+                                    running_app.mode = app::AppModes::SendPose;
+                                    running_app.move_pose_estimate(0.0, distance, 0.0);
+                                }
+                            }
+                            Key::Esc => {
+                                running_app.mode = app::AppModes::RobotView;
+                                teleoperator.reset();
+                            }
+                            Key::Char('\n') => {
+                                if running_app.mode != app::AppModes::Teleoperate {
+                                    initial_pose_pub
+                                        .send_estimate(&running_app.get_pose_estimate());
+                                    running_app.mode = app::AppModes::RobotView;
+                                }
+                            }
+                            Key::Char('-') => {
+                                running_app.decrease_zoom();
+                                running_app.compute_bounds(listener.clone());
+                            }
+                            Key::Char('=') => {
+                                running_app.increase_zoom();
+                                running_app.compute_bounds(listener.clone());
+                            }
+                            Key::Ctrl('c') => {
+                                break;
+                            }
+                            Key::Char('k') => {
+                                distance = distance * 2.;
+                            }
+                            Key::Char('j') => {
+                                distance = distance * 0.5;
+                            }
+                            Key::Char('t') => match running_app.mode {
+                                app::AppModes::Teleoperate => {
+                                    teleoperator.reset();
+                                    teleoperator.run();
+                                    running_app.mode = app::AppModes::RobotView;
+                                }
+                                _ => running_app.mode = app::AppModes::Teleoperate,
+                            },
+                            Key::Char('h') => {
+                                running_app.mode = app::AppModes::HelpPage;
+                            }
+                            _ => {}
                         }
-                        Key::Char('w') => {
-                            running_app.mode = app::AppModes::SendPose;
-                            running_app.move_pose_estimate(distance, 0.0, 0.0);
-                        }
-                        Key::Char('s') => {
-                            running_app.mode = app::AppModes::SendPose;
-                            running_app.move_pose_estimate(-distance, 0.0, 0.0);
-                        }
-                        Key::Char('d') => {
-                            running_app.mode = app::AppModes::SendPose;
-                            running_app.move_pose_estimate(0.0, -distance, 0.0);
-                        }
-                        Key::Char('a') => {
-                            running_app.mode = app::AppModes::SendPose;
-                            running_app.move_pose_estimate(0.0, distance, 0.0);
-                        }
-                        Key::Esc => {
-                            running_app.mode = app::AppModes::RobotView;
-                            // running_app.reset_pose_estimate();
-                        }
-                        Key::Char('\n') => {
-                            initial_pose_pub.send_estimate(&running_app.get_pose_estimate());
-                            running_app.mode = app::AppModes::RobotView;  
-                        }
-                        Key::Char('-') => {
-                            running_app.decrease_zoom();
-                            running_app.compute_bounds(listener.clone());
-                        }
-                        Key::Char('=') => {
-                            running_app.increase_zoom();
-                            running_app.compute_bounds(listener.clone());
-                        }
-                        Key::Ctrl('c') => {
-                            break;
-                        }
-                        Key::Char('k') => {
-                            distance = distance * 2.;
-                        }
-                        Key::Char('j') => {
-                            distance = distance * 0.5;
-                        }
-                        Key::Char('h') => {
-                            running_app.mode = app::AppModes::HelpPage;
-                        }
-                        _ => {}
-                    },
+                    }
                     Event::Tick => {}
                 }
             }

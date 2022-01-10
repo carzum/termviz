@@ -237,7 +237,6 @@ impl App {
             .wrap(Wrap { trim: false });
 
         let key_bindings = Table::new(
-            // IntoIterator::into_iter(["Key", "Function"]),
             IntoIterator::into_iter(key_bindings_rows),
         )
         .block(

@@ -171,7 +171,6 @@ impl App {
             ["Enter", "Sends the pose estimate."],
             ["-", "Decreases the zoom."],
             ["=", "Increases the zoom."],
-            ["h", "Shows this page."],
             [
                 "k",
                 "Increases the step size for manipulating the pose estimate.",

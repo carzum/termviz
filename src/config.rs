@@ -41,6 +41,25 @@ impl Default for TeleopConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct RosoutConfig {
+    pub buffer_size: usize,
+    pub min_loglevel: i8,
+    pub screen_percentage: u16,
+    pub enabled_by_default: bool,
+}
+
+impl Default for RosoutConfig {
+    fn default() -> RosoutConfig {
+        RosoutConfig {
+            buffer_size: 150,
+            min_loglevel: 2, // INFO, see rosmsg show rosgraph_msgs/Log
+            screen_percentage: 25,
+            enabled_by_default: true,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TermvizConfig {
     pub fixed_frame: String,
     pub robot_frame: String,
@@ -52,6 +71,7 @@ pub struct TermvizConfig {
     pub visible_area: Vec<f64>, //Borders of map from center in Meter
     pub zoom_factor: f64,
     pub teleop_key_mapping: TeleopConfig,
+    pub rosout_config: RosoutConfig,
 }
 
 impl Default for TermvizConfig {
@@ -84,6 +104,7 @@ impl Default for TermvizConfig {
             visible_area: vec![-5., 5., -5., 5.],
             zoom_factor: 0.1,
             teleop_key_mapping: TeleopConfig::default(),
+            rosout_config: RosoutConfig::default(),
         };
         let res = confy::store("termviz", "termviz", &conf);
         match res {

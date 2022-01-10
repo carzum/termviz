@@ -7,6 +7,7 @@ mod laser;
 mod listeners;
 mod map;
 mod marker;
+mod rosout;
 mod teleop;
 mod transformation;
 use std::sync::{Arc, Mutex};
@@ -150,6 +151,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 }
                                 _ => running_app.mode = app::AppModes::Teleoperate,
                             },
+                            Key::Char('L') => {
+                                running_app.toggle_rosout_widget();
+                            }
                             Key::Char('h') => {
                                 running_app.mode = app::AppModes::HelpPage;
                             }
@@ -159,6 +163,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     Event::Tick => {}
                 }
             }
+
             app::AppModes::HelpPage => {
                 terminal.draw(|f| {
                     running_app.show_help(f);

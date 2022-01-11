@@ -235,18 +235,16 @@ impl App {
             .alignment(Alignment::Center)
             .wrap(Wrap { trim: false });
 
-        let key_bindings = Table::new(
-            IntoIterator::into_iter(key_bindings_rows),
-        )
-        .block(
-            Block::default()
-                .title(" Key binding ")
-                .borders(Borders::ALL),
-        )
-        .header(Row::new(vec!["Key", "Function"]).style(Style::default().fg(Color::Yellow)))
-        .widths(&[Constraint::Min(6), Constraint::Min(30)])
-        .style(Style::default().fg(Color::White))
-        .column_spacing(10);
+        let key_bindings = Table::new(IntoIterator::into_iter(key_bindings_rows))
+            .block(
+                Block::default()
+                    .title(" Key binding ")
+                    .borders(Borders::ALL),
+            )
+            .header(Row::new(vec!["Key", "Function"]).style(Style::default().fg(Color::Yellow)))
+            .widths(&[Constraint::Min(6), Constraint::Min(30)])
+            .style(Style::default().fg(Color::White))
+            .column_spacing(10);
         f.render_widget(title, areas[0]);
         f.render_widget(explanation, areas[1]);
         f.render_widget(key_bindings, areas[2]);

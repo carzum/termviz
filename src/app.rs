@@ -190,7 +190,7 @@ impl App {
             "",
             "Press 't' to enter/exit teleoperating mode, where the configured keys (default wasd qe) are used to move the robot. \
             When entering the mode, a zero velocity vector is sent, stopping the robot. \
-            Additionally, any button but the configured ones will stop the robot",
+            Additionally, any button but the configured ones will stop the robot.",
             "",
             "Press any key to go back to the robot view, or Ctrl+c to exit.",
             "", // Leave some space to the bottom
@@ -208,16 +208,14 @@ impl App {
                 [
                     Constraint::Length(3), // Title + 2 borders
                     Constraint::Min(u16::try_from(explanation_raw.len() + 2).unwrap()), // Text + 2 borders
-                    Constraint::Min(u16::try_from(key_bindings_raw.len() + 2).unwrap()), // Table + header + space
+                    Constraint::Min(u16::try_from(key_bindings_raw.len() + 3).unwrap()), // Table + header + space
                 ]
                 .as_ref(),
             )
             .split(f.size());
 
         // Conversion into tui stuff
-        let key_bindings_rows = key_bindings_raw
-            .iter()
-            .map(|x| Row::Data(IntoIterator::into_iter(x)));
+        let key_bindings_rows = key_bindings_raw.into_iter().map(|x| Row::new(x));
 
         let explanation_spans: std::vec::Vec<tui::text::Spans> = explanation_raw
             .into_iter()
@@ -238,7 +236,6 @@ impl App {
             .wrap(Wrap { trim: false });
 
         let key_bindings = Table::new(
-            IntoIterator::into_iter(["Key", "Function"]),
             IntoIterator::into_iter(key_bindings_rows),
         )
         .block(
@@ -246,7 +243,7 @@ impl App {
                 .title(" Key binding ")
                 .borders(Borders::ALL),
         )
-        .header_style(Style::default().fg(Color::Yellow))
+        .header(Row::new(vec!["Key", "Function"]).style(Style::default().fg(Color::Yellow)))
         .widths(&[Constraint::Min(6), Constraint::Min(30)])
         .style(Style::default().fg(Color::White))
         .column_spacing(10);

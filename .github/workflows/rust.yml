@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: install ROS messages
-      run: sudo apt install ros-geometry-msgs ros-visualization-msgs ros-sensor-msgs ros-nav-msgs ros-tf2-msgs
+      run: sudo apt install ros-geometry-msgs ros-visualization-msgs ros-sensor-msgs ros-nav-msgs ros-tf2-msgs ros-rosgraph-msgs
     - name: Build
       run: ROSRUST_MSG_PATH=/usr/share/ cargo build --verbose
     - name: Run tests

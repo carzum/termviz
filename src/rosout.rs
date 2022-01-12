@@ -80,7 +80,7 @@ impl RosoutListener {
 
         let _subscriber = rosrust::subscribe(
             "/rosout",
-            1,
+            buffer_size,
             move |rosout_msg: rosrust_msg::rosgraph_msgs::Log| {
                 if !cb_log_buffer.read().unwrap().is_buffering {
                     return;

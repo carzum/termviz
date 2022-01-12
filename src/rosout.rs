@@ -20,6 +20,9 @@ impl LogBuffer {
     }
 
     pub fn push_logstring(&mut self, logstring: String) {
+        if !self.is_buffering {
+            return;
+        }
         if self.producer.remaining() == 0 {
             self.consumer.pop();
         }
@@ -79,21 +82,22 @@ impl RosoutListener {
             "/rosout",
             1,
             move |rosout_msg: rosrust_msg::rosgraph_msgs::Log| {
-                if cb_log_buffer.read().unwrap().is_buffering {
-                    let result = format_logstring(
-                        rosout_msg.level,
-                        &rosout_msg.msg,
-                        &rosout_msg.name,
-                        &rosout_msg.header.stamp,
-                        min_loglevel,
-                    );
-                    match result {
-                        Some(formatted_logstring) => cb_log_buffer
-                            .write()
-                            .unwrap()
-                            .push_logstring(formatted_logstring),
-                        None => {}
-                    }
+                if !cb_log_buffer.read().unwrap().is_buffering {
+                    return;
+                }
+                let result = format_logstring(
+                    rosout_msg.level,
+                    &rosout_msg.msg,
+                    &rosout_msg.name,
+                    &rosout_msg.header.stamp,
+                    min_loglevel,
+                );
+                match result {
+                    Some(formatted_logstring) => cb_log_buffer
+                        .write()
+                        .unwrap()
+                        .push_logstring(formatted_logstring),
+                    None => {}
                 }
             },
         )

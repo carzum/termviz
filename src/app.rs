@@ -386,7 +386,7 @@ impl App {
         let logstrings = self.rosout_listener.read_logstring_buffer();
         let mut all_spans = Vec::<Spans>::new();
         for logstring in logstrings.iter() {
-            all_spans.extend(ansi_to_text(logstring.as_bytes().to_vec()).unwrap().lines);
+            all_spans.extend(ansi_to_text(logstring.bytes()).unwrap().lines);
         }
         return Paragraph::new(Text::from(all_spans))
             .block(Block::default().borders(Borders::ALL).title("rosout"));

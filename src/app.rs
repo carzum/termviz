@@ -192,7 +192,7 @@ impl App {
                 "Decreases the step size for manipulating the pose estimate.",
             ],
             [
-                "L",
+                "l",
                 "Switches the mode of the rosout log display: 
                    enabled -> stopped -> disabled -> enabled ...",
             ],

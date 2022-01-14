@@ -151,7 +151,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 }
                                 _ => running_app.mode = app::AppModes::Teleoperate,
                             },
-                            Key::Char('L') => {
+                            Key::Char('l') => {
                                 running_app.toggle_rosout_widget();
                             }
                             Key::Char('h') => {

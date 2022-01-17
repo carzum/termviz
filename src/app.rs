@@ -129,6 +129,12 @@ impl App {
     pub fn compute_bounds(&mut self, tf_listener: Arc<rustros_tf::TfListener>) {
         // 0.5 is the height width ratio of terminal chars
         let scale_factor = self.terminal_size.0 as f64 / self.terminal_size.1 as f64 * 0.5;
+        let y_factor;
+        if self.rosout_widget_enabled {
+            y_factor = 1. - self.rosout_screen_percentage as f64 / 100.;
+        } else {
+            y_factor = 1.;
+        }
         let res = tf_listener.clone().lookup_transform(
             &self.static_frame,
             &self.robot_frame,
@@ -143,8 +149,8 @@ impl App {
         self.bounds = vec![
             tf.transform.translation.x + self.initial_bounds[0] / self.zoom * scale_factor,
             tf.transform.translation.x + self.initial_bounds[1] / self.zoom * scale_factor,
-            tf.transform.translation.y + self.initial_bounds[2] / self.zoom,
-            tf.transform.translation.y + self.initial_bounds[3] / self.zoom,
+            tf.transform.translation.y + self.initial_bounds[2] / self.zoom * y_factor,
+            tf.transform.translation.y + self.initial_bounds[3] / self.zoom * y_factor,
         ];
     }
 

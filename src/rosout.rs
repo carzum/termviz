@@ -1,5 +1,7 @@
+use colored::{Color, Colorize};
 use ringbuf;
 use rosrust;
+use rosrust_msg::rosgraph_msgs::Log;
 use std::option::Option;
 use std::sync::{Arc, RwLock};
 
@@ -47,9 +49,6 @@ fn format_logstring(
     stamp: &rosrust::Time,
     min_loglevel: i8,
 ) -> Option<String> {
-    use colored::{Color, Colorize};
-    use rosrust_msg::rosgraph_msgs::Log;
-
     if level < min_loglevel {
         return None;
     }
@@ -78,29 +77,25 @@ impl RosoutListener {
         let log_buffer = Arc::new(RwLock::new(LogBuffer::new(buffer_size, start_buffering)));
         let cb_log_buffer = log_buffer.clone();
 
-        let _subscriber = rosrust::subscribe(
-            "/rosout",
-            buffer_size,
-            move |rosout_msg: rosrust_msg::rosgraph_msgs::Log| {
-                if !cb_log_buffer.read().unwrap().is_buffering {
-                    return;
-                }
-                let result = format_logstring(
-                    rosout_msg.level,
-                    &rosout_msg.msg,
-                    &rosout_msg.name,
-                    &rosout_msg.header.stamp,
-                    min_loglevel,
-                );
-                match result {
-                    Some(formatted_logstring) => cb_log_buffer
-                        .write()
-                        .unwrap()
-                        .push_logstring(formatted_logstring),
-                    None => {}
-                }
-            },
-        )
+        let _subscriber = rosrust::subscribe("/rosout", buffer_size, move |rosout_msg: Log| {
+            if !cb_log_buffer.read().unwrap().is_buffering {
+                return;
+            }
+            let result = format_logstring(
+                rosout_msg.level,
+                &rosout_msg.msg,
+                &rosout_msg.name,
+                &rosout_msg.header.stamp,
+                min_loglevel,
+            );
+            match result {
+                Some(formatted_logstring) => cb_log_buffer
+                    .write()
+                    .unwrap()
+                    .push_logstring(formatted_logstring),
+                None => {}
+            }
+        })
         .unwrap();
 
         RosoutListener {

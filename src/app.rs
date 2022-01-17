@@ -383,9 +383,8 @@ impl App {
     }
 
     pub fn build_rosout_widget(&mut self) -> Paragraph {
-        let logstrings = self.rosout_listener.read_logstring_buffer();
         let mut all_spans = Vec::<Spans>::new();
-        for logstring in logstrings.iter() {
+        for logstring in self.rosout_listener.read_logstring_buffer().iter() {
             all_spans.extend(ansi_to_text(logstring.bytes()).unwrap().lines);
         }
         return Paragraph::new(Text::from(all_spans))

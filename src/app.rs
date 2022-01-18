@@ -242,7 +242,7 @@ impl App {
                     .borders(Borders::ALL),
             )
             .header(Row::new(vec!["Key", "Function"]).style(Style::default().fg(Color::Yellow)))
-            .widths(&[Constraint::Min(6), Constraint::Min(30)])
+            .widths(&[Constraint::Min(6), Constraint::Percentage(100)])
             .style(Style::default().fg(Color::White))
             .column_spacing(10);
         f.render_widget(title, areas[0]);

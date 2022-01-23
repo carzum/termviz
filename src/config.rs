@@ -52,6 +52,7 @@ pub struct TermvizConfig {
     pub map_topics: Vec<ListenerConfigColor>,
     pub laser_topics: Vec<ListenerConfigColor>,
     pub marker_topics: Vec<ListenerConfig>,
+    pub image_topics: Vec<ListenerConfig>,
     pub marker_array_topics: Vec<ListenerConfig>,
     pub target_framerate: i64,
     pub axis_length: f64,
@@ -82,6 +83,9 @@ impl Default for TermvizConfig {
             }],
             marker_topics: vec![ListenerConfig {
                 topic: "marker".to_string(),
+            }],
+            image_topics: vec![ListenerConfig {
+                topic: "image_rect".to_string(),
             }],
             target_framerate: 30,
             axis_length: 0.5,

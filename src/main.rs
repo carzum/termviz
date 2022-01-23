@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod event;
 mod footprint;
+mod image;
 mod initial_pose;
 mod laser;
 mod listeners;
@@ -83,6 +84,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     running_app.mode = app::AppModes::SendPose;
                                     running_app.move_pose_estimate(0.0, 0.0, distance);
                                 }
+                            }
+                            Key::Char('i') => {
+                                running_app.mode = app::AppModes::ImageView;
+                                running_app.activate_next_image_sub();
                             }
                             Key::Char('e') => {
                                 if running_app.mode != app::AppModes::Teleoperate {
@@ -169,6 +174,26 @@ fn main() -> Result<(), Box<dyn Error>> {
                             break;
                         }
                         _ => {
+                            running_app.mode = app::AppModes::RobotView;
+                        }
+                    },
+                    Event::Tick => {}
+                }
+            }
+            app::AppModes::ImageView => {
+                terminal.draw(|f| {
+                    running_app.draw_image(f);
+                })?;
+                match events.next()? {
+                    Event::Input(input) => match input {
+                        Key::Ctrl('c') => {
+                            break;
+                        }
+                        Key::Char('i') => {
+                            running_app.activate_next_image_sub();
+                        }
+                        _ => {
+                            running_app.deactivate_image_subs();
                             running_app.mode = app::AppModes::RobotView;
                         }
                     },

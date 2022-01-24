@@ -74,6 +74,7 @@ impl App {
             config.fixed_frame.clone(),
             config.laser_topics,
             config.marker_array_topics,
+            config.marker_topics,
             config.map_topics,
         );
         let base_link_pose = tf_listener
@@ -309,6 +310,11 @@ impl App {
                 }
                 for marker in &self.listeners.markers {
                     for line in marker.get_lines() {
+                        ctx.draw(&line);
+                    }
+                }
+                for marker_array in &self.listeners.marker_arrays {
+                    for line in marker_array.get_lines() {
                         ctx.draw(&line);
                     }
                 }

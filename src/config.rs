@@ -46,6 +46,7 @@ pub struct TermvizConfig {
     pub robot_frame: String,
     pub map_topics: Vec<ListenerConfig>,
     pub laser_topics: Vec<ListenerConfig>,
+    pub marker_topics: Vec<ListenerConfig>,
     pub marker_array_topics: Vec<ListenerConfig>,
     pub target_framerate: i64,
     pub axis_length: f64,
@@ -73,6 +74,14 @@ impl Default for TermvizConfig {
             }],
             marker_array_topics: vec![ListenerConfig {
                 topic: "marker_array".to_string(),
+                color: Color {
+                    r: 20,
+                    b: 20,
+                    g: 200,
+                },
+            }],
+            marker_topics: vec![ListenerConfig {
+                topic: "marker".to_string(),
                 color: Color {
                     r: 20,
                     b: 20,

@@ -80,6 +80,63 @@ impl MarkerListener {
         let _sub = rosrust::subscribe(
             &config.topic,
             2,
+            move |msg: rosrust_msg::visualization_msgs::Marker| {
+                let mut _lines = loop_lines.write().unwrap();
+                _lines.clear();
+                if msg.action != 0 {
+                    return;
+                }
+                let res = &local_listener.clone().lookup_transform(
+                    &msg.header.frame_id,
+                    &static_frame.clone(),
+                    msg.header.stamp,
+                );
+                match &res {
+                    Ok(res) => res,
+                    Err(_e) => return,
+                };
+
+                _lines.extend(marker_2_rectancle(
+                    &msg,
+                    &res.as_ref().unwrap().transform,
+                ));
+            },
+        )
+        .unwrap();
+
+        MarkerListener {
+            config,
+            lines: blines,
+            _tf_listener: tf_listener,
+            _subscriber: _sub,
+        }
+    }
+
+    pub fn get_lines(&self) -> Vec<Line> {
+        self.lines.read().unwrap().to_vec()
+    }
+}
+
+pub struct MarkerArrayListener {
+    pub config: ListenerConfig,
+    pub lines: Arc<RwLock<Vec<Line>>>,
+    _tf_listener: Arc<rustros_tf::TfListener>,
+    _subscriber: rosrust::Subscriber,
+}
+
+impl MarkerArrayListener {
+    pub fn new(
+        config: ListenerConfig,
+        tf_listener: Arc<rustros_tf::TfListener>,
+        static_frame: String,
+    ) -> MarkerArrayListener {
+        let blines = Arc::new(RwLock::new(Vec::<Line>::new()));
+        let loop_lines = blines.clone();
+        let local_listener = tf_listener.clone();
+
+        let _sub = rosrust::subscribe(
+            &config.topic,
+            2,
             move |msg: rosrust_msg::visualization_msgs::MarkerArray| {
                 let mut _lines = loop_lines.write().unwrap();
                 _lines.clear();
@@ -106,7 +163,7 @@ impl MarkerListener {
         )
         .unwrap();
 
-        MarkerListener {
+        MarkerArrayListener {
             config,
             lines: blines,
             _tf_listener: tf_listener,

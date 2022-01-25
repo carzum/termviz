@@ -73,8 +73,8 @@ impl App {
             tf_listener.clone(),
             config.fixed_frame.clone(),
             config.laser_topics,
-            config.marker_array_topics,
             config.marker_topics,
+            config.marker_array_topics,
             config.map_topics,
         );
         let base_link_pose = tf_listener

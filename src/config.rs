@@ -96,6 +96,5 @@ impl Default for TermvizConfig {
 
 pub fn get_config() -> Result<TermvizConfig, confy::ConfyError> {
     let cfg: TermvizConfig = confy::load("termviz", "termviz")?;
-    println!("{:#?}", cfg);
     Ok(cfg)
 }

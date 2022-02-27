@@ -1,4 +1,4 @@
-use crate::config::ListenerConfig;
+use crate::config::ListenerConfigColor;
 use crate::transformation;
 use std::sync::{Arc, RwLock};
 
@@ -8,7 +8,7 @@ use rosrust;
 use rustros_tf;
 
 pub struct MapListener {
-    pub config: ListenerConfig,
+    pub config: ListenerConfigColor,
     pub points: Arc<RwLock<Vec<(f64, f64)>>>,
     _tf_listener: Arc<rustros_tf::TfListener>,
     _static_frame: String,
@@ -17,7 +17,7 @@ pub struct MapListener {
 
 impl MapListener {
     pub fn new(
-        config: ListenerConfig,
+        config: ListenerConfigColor,
         tf_listener: Arc<rustros_tf::TfListener>,
         static_frame: String,
     ) -> MapListener {

@@ -12,6 +12,11 @@ pub struct Color {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListenerConfig {
     pub topic: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ListenerConfigColor {
+    pub topic: String,
     pub color: Color,
 }
 
@@ -44,8 +49,8 @@ impl Default for TeleopConfig {
 pub struct TermvizConfig {
     pub fixed_frame: String,
     pub robot_frame: String,
-    pub map_topics: Vec<ListenerConfig>,
-    pub laser_topics: Vec<ListenerConfig>,
+    pub map_topics: Vec<ListenerConfigColor>,
+    pub laser_topics: Vec<ListenerConfigColor>,
     pub marker_topics: Vec<ListenerConfig>,
     pub marker_array_topics: Vec<ListenerConfig>,
     pub target_framerate: i64,
@@ -60,7 +65,7 @@ impl Default for TermvizConfig {
         let conf = TermvizConfig {
             fixed_frame: "map".to_string(),
             robot_frame: "base_link".to_string(),
-            map_topics: vec![ListenerConfig {
+            map_topics: vec![ListenerConfigColor {
                 topic: "map".to_string(),
                 color: Color {
                     r: 255,
@@ -68,25 +73,15 @@ impl Default for TermvizConfig {
                     g: 255,
                 },
             }],
-            laser_topics: vec![ListenerConfig {
+            laser_topics: vec![ListenerConfigColor {
                 topic: "scan".to_string(),
                 color: Color { r: 200, b: 0, g: 0 },
             }],
             marker_array_topics: vec![ListenerConfig {
                 topic: "marker_array".to_string(),
-                color: Color {
-                    r: 20,
-                    b: 20,
-                    g: 200,
-                },
             }],
             marker_topics: vec![ListenerConfig {
                 topic: "marker".to_string(),
-                color: Color {
-                    r: 20,
-                    b: 20,
-                    g: 200,
-                },
             }],
             target_framerate: 30,
             axis_length: 0.5,

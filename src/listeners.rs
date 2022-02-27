@@ -1,4 +1,4 @@
-use crate::config::ListenerConfig;
+use crate::config::{ListenerConfig, ListenerConfigColor};
 use crate::laser;
 use crate::map;
 use crate::marker;
@@ -16,10 +16,10 @@ impl Listeners {
     pub fn new(
         tf_listener: Arc<rustros_tf::TfListener>,
         static_frame: String,
-        laser_topics: Vec<ListenerConfig>,
+        laser_topics: Vec<ListenerConfigColor>,
         marker_topics: Vec<ListenerConfig>,
         marker_array_topics: Vec<ListenerConfig>,
-        map_topics: Vec<ListenerConfig>,
+        map_topics: Vec<ListenerConfigColor>,
     ) -> Listeners {
         let mut lasers: Vec<laser::LaserListener> = Vec::new();
         for laser_config in laser_topics {

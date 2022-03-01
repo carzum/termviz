@@ -1,7 +1,9 @@
 use crate::config::get_config;
 use crate::footprint::{get_current_footprint, get_footprint};
 use crate::listeners::Listeners;
+use crate::rosout;
 use crate::transformation;
+use ansi_to_tui::ansi_to_text;
 use nalgebra::{Isometry2, Vector2};
 use std::convert::TryFrom;
 use std::io;
@@ -14,9 +16,9 @@ use termion::screen::AlternateScreen;
 use termion::terminal_size;
 use tui::backend::Backend;
 use tui::backend::TermionBackend;
-use tui::layout::{Alignment, Constraint, Direction, Layout};
+use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
-use tui::text::{Span, Spans};
+use tui::text::{Span, Spans, Text};
 use tui::widgets::canvas::{Canvas, Line, Points};
 use tui::widgets::{Block, Borders, Paragraph, Row, Table, Wrap};
 use tui::{Frame, Terminal};
@@ -64,6 +66,9 @@ pub struct App {
     footprint: Vec<(f64, f64)>,
     initial_pose: Isometry2<f64>,
     pose_estimate: Isometry2<f64>,
+    pub rosout_listener: rosout::RosoutListener,
+    rosout_screen_percentage: u16,
+    pub rosout_widget_enabled: bool,
 }
 
 impl App {
@@ -100,6 +105,13 @@ impl App {
             listeners: listeners,
             initial_pose: initial_pose.clone(),
             pose_estimate: initial_pose,
+            rosout_listener: rosout::RosoutListener::new(
+                config.rosout_config.buffer_size,
+                config.rosout_config.enabled_by_default,
+                config.rosout_config.min_loglevel,
+            ),
+            rosout_screen_percentage: config.rosout_config.screen_percentage,
+            rosout_widget_enabled: config.rosout_config.enabled_by_default,
         }
     }
 
@@ -118,6 +130,12 @@ impl App {
     pub fn compute_bounds(&mut self, tf_listener: Arc<rustros_tf::TfListener>) {
         // 0.5 is the height width ratio of terminal chars
         let scale_factor = self.terminal_size.0 as f64 / self.terminal_size.1 as f64 * 0.5;
+        let y_factor;
+        if self.rosout_widget_enabled {
+            y_factor = 1. - self.rosout_screen_percentage as f64 / 100.;
+        } else {
+            y_factor = 1.;
+        }
         let res = tf_listener.clone().lookup_transform(
             &self.static_frame,
             &self.robot_frame,
@@ -132,8 +150,8 @@ impl App {
         self.bounds = vec![
             tf.transform.translation.x + self.initial_bounds[0] / self.zoom * scale_factor,
             tf.transform.translation.x + self.initial_bounds[1] / self.zoom * scale_factor,
-            tf.transform.translation.y + self.initial_bounds[2] / self.zoom,
-            tf.transform.translation.y + self.initial_bounds[3] / self.zoom,
+            tf.transform.translation.y + self.initial_bounds[2] / self.zoom * y_factor,
+            tf.transform.translation.y + self.initial_bounds[3] / self.zoom * y_factor,
         ];
     }
 
@@ -179,6 +197,11 @@ impl App {
             [
                 "j",
                 "Decreases the step size for manipulating the pose estimate.",
+            ],
+            [
+                "l",
+                "Switches the mode of the rosout log display: 
+                   enabled -> stopped -> disabled -> enabled ...",
             ],
             ["h", "Shows this page."],
             ["Ctrl+c", "Quits the application."],
@@ -255,9 +278,24 @@ impl App {
     where
         B: Backend,
     {
-        let chunks = Layout::default()
-            .constraints([Constraint::Percentage(100)].as_ref())
-            .split(f.size());
+        let chunks: Vec<Rect>;
+        if self.rosout_widget_enabled {
+            assert!(self.rosout_screen_percentage <= 100);
+            let robot_view_percentage = 100 - self.rosout_screen_percentage;
+            chunks = Layout::default()
+                .constraints(
+                    [
+                        Constraint::Percentage(robot_view_percentage),
+                        Constraint::Percentage(self.rosout_screen_percentage),
+                    ]
+                    .as_ref(),
+                )
+                .split(f.size());
+        } else {
+            chunks = Layout::default()
+                .constraints([Constraint::Percentage(100)].as_ref())
+                .split(f.size());
+        }
 
         let base_link_pose = tf_listener
             .lookup_transform(&self.static_frame, &self.robot_frame, rosrust::Time::new())
@@ -340,5 +378,28 @@ impl App {
                 }
             });
         f.render_widget(canvas, chunks[0]);
+        if self.rosout_widget_enabled {
+            f.render_widget(self.build_rosout_widget(), chunks[1]);
+        }
+    }
+
+    pub fn toggle_rosout_widget(&mut self) {
+        if self.rosout_listener.is_buffering() {
+            self.rosout_listener.toggle_buffering();
+        } else if self.rosout_widget_enabled {
+            self.rosout_widget_enabled = !self.rosout_widget_enabled;
+        } else {
+            self.rosout_listener.toggle_buffering();
+            self.rosout_widget_enabled = true;
+        }
+    }
+
+    pub fn build_rosout_widget(&mut self) -> Paragraph {
+        let mut all_spans = Vec::<Spans>::new();
+        for logstring in self.rosout_listener.read_logstring_buffer().iter() {
+            all_spans.extend(ansi_to_text(logstring.bytes()).unwrap().lines);
+        }
+        return Paragraph::new(Text::from(all_spans))
+            .block(Block::default().borders(Borders::ALL).title("rosout"));
     }
 }

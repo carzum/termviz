@@ -8,6 +8,7 @@ use std::sync::Arc;
 pub struct Listeners {
     pub lasers: Vec<laser::LaserListener>,
     pub markers: Vec<marker::MarkerListener>,
+    pub marker_arrays: Vec<marker::MarkerArrayListener>,
     pub maps: Vec<map::MapListener>,
 }
 
@@ -17,6 +18,7 @@ impl Listeners {
         static_frame: String,
         laser_topics: Vec<ListenerConfig>,
         marker_topics: Vec<ListenerConfig>,
+        marker_array_topics: Vec<ListenerConfig>,
         map_topics: Vec<ListenerConfig>,
     ) -> Listeners {
         let mut lasers: Vec<laser::LaserListener> = Vec::new();
@@ -37,6 +39,16 @@ impl Listeners {
             ));
         }
 
+        let mut marker_arrays: Vec<marker::MarkerArrayListener> = Vec::new();
+        for m_config in marker_array_topics {
+            marker_arrays.push(marker::MarkerArrayListener::new(
+                m_config,
+                tf_listener.clone(),
+                static_frame.clone(),
+            ));
+        }
+
+
         let mut maps: Vec<map::MapListener> = Vec::new();
         for map_config in map_topics {
             maps.push(map::MapListener::new(
@@ -47,9 +59,10 @@ impl Listeners {
         }
 
         Listeners {
-            lasers: lasers,
-            markers: markers,
-            maps: maps,
+            lasers,
+            markers,
+            marker_arrays,
+            maps,
         }
     }
 }

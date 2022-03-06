@@ -20,6 +20,7 @@ use tui::text::{Span, Spans};
 use tui::widgets::canvas::{Canvas, Line, Points};
 use tui::widgets::{Block, Borders, Paragraph, Row, Table, Wrap};
 use tui::{Frame, Terminal};
+use tui_image::{ColorMode, Image};
 
 #[derive(PartialEq, AsRefStr)]
 pub enum AppModes {
@@ -27,6 +28,7 @@ pub enum AppModes {
     SendPose,
     HelpPage,
     Teleoperate,
+    ImageView,
 }
 
 pub fn get_frame_lines(tf: &rosrust_msg::geometry_msgs::Transform, axis_length: f64) -> Vec<Line> {
@@ -76,6 +78,7 @@ impl App {
             config.marker_topics,
             config.marker_array_topics,
             config.map_topics,
+            config.image_topics,
         );
         let base_link_pose = tf_listener
             .lookup_transform(
@@ -155,6 +158,49 @@ impl App {
     pub fn get_pose_estimate(&self) -> rosrust_msg::geometry_msgs::Transform {
         transformation::iso2d_to_ros(&self.pose_estimate)
     }
+
+    pub fn deactivate_image_subs(&mut self) {
+        for sub in self.listeners.images.iter_mut() {
+            sub.deactivate();
+        }
+    }
+
+    pub fn activate_next_image_sub(&mut self) {
+        let n_subs = &self.listeners.images.len();
+        for (i, sub) in self.listeners.images.iter_mut().enumerate() {
+            if sub.is_active() {
+                sub.deactivate();
+                if i < n_subs - 1 {
+                    let _ = &self.listeners.images[i + 1].activate();
+                } else {
+                    let _ = &self.listeners.images[0].activate();
+                }
+                return;
+            }
+        }
+        if n_subs > &0 {
+            let _ = &self.listeners.images[0].activate();
+        }
+    }
+
+    pub fn draw_image<B>(&mut self, f: &mut Frame<B>)
+    where
+        B: Backend,
+    {
+        let chunks = Layout::default()
+            .constraints([Constraint::Percentage(100)].as_ref())
+            .split(f.size());
+        for image_sub in &self.listeners.images {
+            if image_sub.is_active() {
+                let image = image_sub.img.read().unwrap();
+                let widget = Image::with_img(image.clone())
+                    .color_mode(ColorMode::Rgb);
+                f.render_widget(widget, chunks[0]);
+                break;
+            }
+        }
+    }
+
     pub fn show_help<B>(&mut self, f: &mut Frame<B>)
     where
         B: Backend,
@@ -172,6 +218,7 @@ impl App {
             ["Enter", "Sends the pose estimate."],
             ["-", "Decreases the zoom."],
             ["=", "Increases the zoom."],
+            ["i", "Toggle image mode."],
             [
                 "k",
                 "Increases the step size for manipulating the pose estimate.",

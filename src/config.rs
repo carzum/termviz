@@ -1,6 +1,7 @@
 use confy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Color {
@@ -93,16 +94,29 @@ impl Default for TermvizConfig {
             zoom_factor: 0.1,
             teleop_key_mapping: TeleopConfig::default(),
         };
-        let res = confy::store("termviz", "termviz", &conf);
-        match res {
-            Ok(v) => println!("Stored default config: {:?}", v),
-            Err(e) => println!("Error storing default config: {:?}", e),
-        }
         conf
     }
 }
 
 pub fn get_config() -> Result<TermvizConfig, confy::ConfyError> {
-    let cfg: TermvizConfig = confy::load("termviz", "termviz")?;
+    let mut cfg = TermvizConfig::default();
+    let user_path = confy::get_configuration_file_path("termviz", "termviz")?;
+    if Path::new(&user_path).exists() {
+        // use user config if exists
+        cfg = confy::load("termviz", "termviz")?;
+    } else {
+        let sys_path = "/etc/termviz/termviz.yml";
+        if Path::new(sys_path).exists() {
+            // fallback to system config
+            cfg = confy::load_path(sys_path)?;
+        } else {
+            // no config found, store default in user space
+            let res = confy::store("termviz", "termviz", &cfg);
+            match res {
+                Ok(_) => println!("Stored default config in: {:?}", user_path),
+                Err(e) => println!("Error storing default config: {:?}", e),
+            }
+        };
+    };
     Ok(cfg)
 }

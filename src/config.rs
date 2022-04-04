@@ -109,14 +109,7 @@ pub fn get_config() -> Result<TermvizConfig, confy::ConfyError> {
         if Path::new(sys_path).exists() {
             // fallback to system config
             cfg = confy::load_path(sys_path)?;
-        } else {
-            // no config found, store default in user space
-            let res = confy::store("termviz", "termviz", &cfg);
-            match res {
-                Ok(_) => println!("Stored default config in: {:?}", user_path),
-                Err(e) => println!("Error storing default config: {:?}", e),
-            }
-        };
+        }
     };
     Ok(cfg)
 }

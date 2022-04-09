@@ -355,15 +355,9 @@ impl App {
                         ),
                     });
                 }
-                for marker in &self.listeners.markers {
-                    for line in marker.get_lines() {
-                        ctx.draw(&line);
-                    }
-                }
-                for marker_array in &self.listeners.marker_arrays {
-                    for line in marker_array.get_lines() {
-                        ctx.draw(&line);
-                    }
+
+                for line in self.listeners.markers.get_lines() {
+                    ctx.draw(&line);
                 }
 
                 for line in get_frame_lines(&base_link_pose, self.axis_length) {

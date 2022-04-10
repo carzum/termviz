@@ -19,7 +19,6 @@ use tui::widgets::canvas::Line;
 struct TermvizMarker {
     pub lines: Vec<Line>,
     pub id: i32,
-    pub ns: String,
 }
 
 ///Creates a list of lines from N line stips.
@@ -49,6 +48,15 @@ fn from_point_strips(strips: &Vec<Vec<Point3<f64>>>, color: &Color) -> Vec<Line>
     lines
 }
 
+///Creates the visible lines for a cube.
+///
+/// If the cube is parallel to the floor, the visible lines are simply the 4 top ones.
+/// Else, we draw all 12 edges.
+/// Arguments:
+/// - `dimension`: size of the cube as width, length, height.
+/// - `offset`: Offset of the center of the cube in the iso transformation.
+/// - `color`: Color of the cube.
+/// - `iso`: Base transformation of the cube.
 fn parse_cube(
     dimension: &rosrust_msg::geometry_msgs::Vector3,
     offset: &rosrust_msg::geometry_msgs::Point,
@@ -303,10 +311,15 @@ fn parse_marker_msg(
     TermvizMarker {
         lines: res,
         id: msg.id,
-        ns: msg.ns.clone(),
     }
 }
 
+///Class that holds all the markers currently active.
+///
+/// The markers are ordered in a double dictionary, which allows to manage namespaces.
+/// Each namespace has its own set of IDs. This structure allows to have markers with
+/// same IDs on different namespaces. Note that this class should be shared by all
+/// publishers such that they can be managed globally.
 struct TermvizMarkerContainer {
     _markers: BTreeMap<String, BTreeMap<i32, TermvizMarker>>,
     _static_frame: String,
@@ -341,17 +354,11 @@ impl TermvizMarkerContainer {
             .and_modify(|namespace| {
                 let res = parse_marker_msg(&marker, &transform.as_ref().unwrap().transform);
                 namespace.insert(res.id, res);
-                if marker.ns.contains("edge") {
-                } else if marker.ns.contains("vert") {
-                } else {
-                    println!("Adding {} to namespace {}", marker.id, marker.ns);
-                }
             })
             .or_insert_with(|| {
                 let res = parse_marker_msg(&marker, &transform.as_ref().unwrap().transform);
                 let mut namespace = BTreeMap::<i32, TermvizMarker>::new();
                 namespace.insert(res.id, res);
-                println!("{} on new namespace {}", marker.id, marker.ns);
                 namespace
             });
     }
@@ -359,12 +366,22 @@ impl TermvizMarkerContainer {
     fn delete_marker(&mut self, marker_ns: String, marker_id: i32) {
         self._markers.entry(marker_ns).and_modify(|namespace| {
             namespace.remove(&marker_id);
-            println!("DELETE {}", marker_id);
         });
     }
 
     fn clear(&mut self) {
         self._markers.clear();
+    }
+
+    fn clear_namespace(&mut self, marker_ns: String) -> Vec<i32> {
+        let mut res = Vec::new();
+        self._markers.entry(marker_ns).and_modify(|namespace| {
+            for marker in namespace.values() {
+                res.push(marker.id);
+            }
+            namespace.clear();
+        });
+        res
     }
 
     fn get_lines(&self) -> Vec<Line> {
@@ -378,27 +395,138 @@ impl TermvizMarkerContainer {
     }
 }
 
-pub struct MarkersListener {
+///Class that handles the lifecycle of the markers.
+///
+/// Markers that provide a lifecycle (i.e. not 0) need to be deleted from the container
+/// once the lifecycle is reached. To do this we add another container which has a timer.
+/// The timer collects jobs after a delay to delete markers from the markers container.
+///
+/// Because the timer uses guards, we also need to store them which is done with a dict
+/// and a list. A repeated task is given to the timer to consume the list of deleted
+/// marker and free the guards.
+struct MarkersLifecycle {
     _markers_container: Arc<RwLock<TermvizMarkerContainer>>,
-    _subscribers: Vec<Arc<Mutex<rosrust::Subscriber>>>,
+    _deleted_markers: Arc<Mutex<Vec<(String, i32)>>>,
+    _guards: Arc<Mutex<BTreeMap<(String, i32), timer::Guard>>>,
     _timer: Arc<Mutex<timer::Timer>>,
+    _cleaner_guard: timer::Guard,
+}
+
+impl MarkersLifecycle {
+    pub fn new(marker_container: TermvizMarkerContainer) -> MarkersLifecycle {
+        let timer = Arc::new(Mutex::new(timer::Timer::new()));
+        let deleted_markers = Arc::new(Mutex::new(Vec::<(String, i32)>::new()));
+        let guards = Arc::new(Mutex::new(BTreeMap::<(String, i32), timer::Guard>::new()));
+
+        let clean_job_delete_markers_ref = deleted_markers.clone();
+        let clean_job_guards_ref = guards.clone();
+
+        let cleaner_guard =
+            timer
+                .lock()
+                .unwrap()
+                .schedule_repeating(chrono::Duration::seconds(5), move || {
+                    // every 5s clear the guards that outlived their markers
+                    let mut clean_job_delete_markers = clean_job_delete_markers_ref.lock().unwrap();
+                    let mut clean_job_guards = clean_job_guards_ref.lock().unwrap();
+                    for key in clean_job_delete_markers.iter() {
+                        clean_job_guards.remove(key);
+                    }
+                    clean_job_delete_markers.clear();
+                });
+
+        Self {
+            _markers_container: Arc::new(RwLock::new(marker_container)),
+            _deleted_markers: deleted_markers,
+            _guards: guards,
+            _timer: timer,
+            _cleaner_guard: cleaner_guard,
+        }
+    }
+
+    fn add_marker(&mut self, marker: &rosrust_msg::visualization_msgs::Marker) {
+        self._markers_container.write().unwrap().add_marker(marker);
+
+        // Handle marker lifecycle
+        if marker.lifetime.seconds() == 0.0 {
+            return;
+        }
+
+        let markers_container_ref = self._markers_container.clone();
+
+        let chrono_delay = chrono::Duration::seconds(marker.lifetime.sec as i64)
+            + chrono::Duration::nanoseconds(marker.lifetime.nsec as i64);
+
+        let marker_info = (marker.ns.clone(), marker.id);
+
+        let guard_ = self
+            ._timer
+            .lock()
+            .unwrap()
+            .schedule_with_delay(chrono_delay, move || {
+                let mut mc = markers_container_ref.write().unwrap();
+                mc.delete_marker(marker_info.0.clone(), marker_info.1);
+            });
+
+        let mut guards_ref = self._guards.lock().unwrap();
+        guards_ref.insert((marker.ns.clone(), marker.id), guard_);
+    }
+
+    fn delete_marker(&mut self, marker_ns: String, marker_id: i32) {
+        self._markers_container
+            .write()
+            .unwrap()
+            .delete_marker(marker_ns.clone(), marker_id);
+        self._deleted_markers
+            .lock()
+            .unwrap()
+            .push((marker_ns, marker_id));
+    }
+
+    fn clear(&mut self) {
+        // loose the guards if any, to cancel the timer tasks
+        self._deleted_markers.lock().unwrap().clear();
+        self._guards.lock().unwrap().clear();
+
+        self._markers_container.write().unwrap().clear();
+    }
+
+    fn clear_namespace(&mut self, marker_ns: String) {
+        let removed_ids = self
+            ._markers_container
+            .write()
+            .unwrap()
+            .clear_namespace(marker_ns.clone());
+
+        // schedule deletion of the cleared markers
+        let mut deleted_markers = self._deleted_markers.lock().unwrap();
+        for id in removed_ids {
+            deleted_markers.push((marker_ns.clone(), id));
+        }
+    }
+
+    fn get_lines(&self) -> Vec<Line> {
+        self._markers_container.write().unwrap().get_lines()
+    }
+}
+
+pub struct MarkersListener {
+    _markers_lifecycle: Arc<RwLock<MarkersLifecycle>>,
+    _subscribers: Vec<Arc<Mutex<rosrust::Subscriber>>>,
 }
 
 impl MarkersListener {
     pub fn new(tf_listener: Arc<rustros_tf::TfListener>, static_frame: String) -> MarkersListener {
+        let marker_container = TermvizMarkerContainer::new(tf_listener, static_frame);
         Self {
-            _markers_container: Arc::new(RwLock::new(TermvizMarkerContainer::new(
-                tf_listener,
-                static_frame,
-            ))),
+            _markers_lifecycle: Arc::new(RwLock::new(MarkersLifecycle::new(marker_container))),
             _subscribers: Vec::new(),
-            _timer: Arc::new(Mutex::new(timer::Timer::new())),
         }
     }
 
     /// Gets all the lines currently active, to render.
     pub fn get_lines(&self) -> Vec<Line> {
-        let markers_container_ref = self._markers_container.read().unwrap();
+        let markers_container_ref = self._markers_lifecycle.read().unwrap();
         markers_container_ref.get_lines()
     }
 
@@ -407,15 +535,13 @@ impl MarkersListener {
     /// Arguments:
     /// - `config`: Configuration containing the topic name.
     pub fn add_marker_listener(&mut self, config: &ListenerConfig) {
-        let markers_container_ref = self._markers_container.clone();
-        let s_timer = self._timer.clone();
+        let markers_container_ref = self._markers_lifecycle.clone();
 
         let sub = rosrust::subscribe(
             &config.topic,
             2,
             move |msg: rosrust_msg::visualization_msgs::Marker| {
                 let mut markers_container = markers_container_ref.write().unwrap();
-                let timer = s_timer.lock().unwrap();
 
                 match msg.action as u8 {
                     rosrust_msg::visualization_msgs::Marker::ADD => {
@@ -427,20 +553,6 @@ impl MarkersListener {
                     rosrust_msg::visualization_msgs::Marker::DELETEALL => markers_container.clear(),
                     _ => return,
                 }
-
-                // Handle marker lifecycle
-                if msg.lifetime.seconds() == 0.0 {
-                    return;
-                }
-
-                let marker_container_ref2 = markers_container_ref.clone();
-                let chrono_delay = chrono::Duration::seconds(msg.lifetime.sec as i64)
-                    + chrono::Duration::nanoseconds(msg.lifetime.nsec as i64);
-
-                timer.schedule_with_delay(chrono_delay, move || {
-                    let mut mc = marker_container_ref2.write().unwrap();
-                    mc.delete_marker(msg.ns.clone(), msg.id)
-                });
             },
         );
 
@@ -452,15 +564,13 @@ impl MarkersListener {
     /// # Arguments
     /// * `config` - Configuration containing the topic.
     pub fn add_marker_array_listener(&mut self, config: &ListenerConfig) {
-        let markers_container_ref = self._markers_container.clone();
-        let s_timer = self._timer.clone();
+        let markers_container_ref = self._markers_lifecycle.clone();
 
         let sub = rosrust::subscribe(
             &config.topic,
             2,
             move |msg: rosrust_msg::visualization_msgs::MarkerArray| {
                 let mut markers_container = markers_container_ref.write().unwrap();
-                let timer = s_timer.lock().unwrap();
 
                 for marker in msg.markers {
                     match marker.action as u8 {
@@ -471,24 +581,10 @@ impl MarkersListener {
                             markers_container.delete_marker(marker.ns.clone(), marker.id)
                         }
                         rosrust_msg::visualization_msgs::Marker::DELETEALL => {
-                            markers_container.clear()
+                            markers_container.clear_namespace(marker.ns.clone())
                         }
                         _ => continue,
                     }
-
-                    // Handle marker lifecycle
-                    if marker.lifetime.seconds() == 0.0 {
-                        continue;
-                    }
-
-                    let marker_container_ref2 = markers_container_ref.clone();
-                    let chrono_delay = chrono::Duration::seconds(marker.lifetime.sec as i64)
-                        + chrono::Duration::nanoseconds(marker.lifetime.nsec as i64);
-
-                    timer.schedule_with_delay(chrono_delay, move || {
-                        let mut mc = marker_container_ref2.write().unwrap();
-                        mc.delete_marker(marker.ns.clone(), marker.id)
-                    });
                 }
             },
         );

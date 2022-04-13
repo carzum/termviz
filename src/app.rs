@@ -1,12 +1,13 @@
+use crate::app_modes;
 use crate::config::get_config;
-use crate::footprint::{get_current_footprint, get_footprint};
+use crate::footprint::get_footprint;
 use crate::listeners::Listeners;
-use crate::transformation;
-use nalgebra::{Isometry2, Vector2};
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
+use std::rc::Rc;
 use std::sync::Arc;
-use strum_macros::AsRefStr;
 use termion::input::MouseTerminal;
 use termion::raw::IntoRawMode;
 use termion::raw::RawTerminal;
@@ -17,59 +18,21 @@ use tui::backend::TermionBackend;
 use tui::layout::{Alignment, Constraint, Direction, Layout};
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
-use tui::widgets::canvas::{Canvas, Line, Points};
 use tui::widgets::{Block, Borders, Paragraph, Row, Table, Wrap};
 use tui::{Frame, Terminal};
-use tui_image::{ColorMode, Image};
 
-#[derive(PartialEq, AsRefStr)]
-pub enum AppModes {
-    RobotView,
-    SendPose,
-    HelpPage,
-    Teleoperate,
-    ImageView,
+pub struct App<B: Backend> {
+    mode: usize,
+    show_help: bool,
+    keymap: HashMap<String, String>,
+    app_modes: Vec<Box<dyn app_modes::BaseMode<B>>>,
 }
 
-pub fn get_frame_lines(tf: &rosrust_msg::geometry_msgs::Transform, axis_length: f64) -> Vec<Line> {
-    let mut result: Vec<Line> = Vec::new();
-    let base_x = transformation::transform_relative_pt(&tf, (axis_length, 0.0));
-    let base_y = transformation::transform_relative_pt(&tf, (0.0, axis_length));
-    result.push(Line {
-        x1: tf.translation.x,
-        y1: tf.translation.y,
-        x2: base_x.0,
-        y2: base_x.1,
-        color: Color::Red,
-    });
-    result.push(Line {
-        x1: tf.translation.x,
-        y1: tf.translation.y,
-        x2: base_y.0,
-        y2: base_y.1,
-        color: Color::Green,
-    });
-    result
-}
-
-pub struct App {
-    pub mode: AppModes,
-    terminal_size: (u16, u16),
-    initial_bounds: Vec<f64>,
-    bounds: Vec<f64>,
-    zoom: f64,
-    axis_length: f64,
-    zoom_factor: f64,
-    static_frame: String,
-    robot_frame: String,
-    listeners: Listeners,
-    footprint: Vec<(f64, f64)>,
-    initial_pose: Isometry2<f64>,
-    pose_estimate: Isometry2<f64>,
-}
-
-impl App {
-    pub fn new(tf_listener: Arc<rustros_tf::TfListener>) -> App {
+impl<B: Backend> App<B> {
+    pub fn new(
+        tf_listener: Arc<rustros_tf::TfListener>,
+        keymap: HashMap<String, String>,
+    ) -> App<B> {
         let config = get_config().unwrap();
         let listeners = Listeners::new(
             tf_listener.clone(),
@@ -78,31 +41,32 @@ impl App {
             config.marker_topics,
             config.marker_array_topics,
             config.map_topics,
-            config.image_topics,
         );
-        let base_link_pose = tf_listener
-            .lookup_transform(
-                &config.fixed_frame,
-                &config.robot_frame,
-                rosrust::Time::new(),
-            )
-            .unwrap()
-            .transform;
-        let initial_pose = transformation::ros_to_iso2d(&base_link_pose);
+        let viewport = Rc::new(RefCell::new(app_modes::viewport::Viewport::new(
+            &config.fixed_frame,
+            &config.robot_frame,
+            tf_listener,
+            &config.visible_area,
+            &get_footprint(),
+            config.axis_length,
+            config.zoom_factor,
+            listeners,
+            terminal_size().unwrap(),
+        )));
+        let send_pose = Box::new(app_modes::send_pose::SendPose::new(
+            &config.send_pose_topic,
+            viewport.clone(),
+        ));
+        let teleop = Box::new(app_modes::teleoperate::Teleoperate::new(
+            viewport,
+            config.teleop,
+        ));
+        let image_view = Box::new(app_modes::image_view::ImageView::new(config.image_topics));
         App {
-            axis_length: config.axis_length,
-            bounds: config.visible_area.clone(),
-            initial_bounds: config.visible_area.clone(),
-            mode: AppModes::RobotView,
-            terminal_size: terminal_size().unwrap(),
-            zoom: 1.0,
-            zoom_factor: config.zoom_factor,
-            static_frame: config.fixed_frame,
-            robot_frame: config.robot_frame,
-            footprint: get_footprint(),
-            listeners: listeners,
-            initial_pose: initial_pose.clone(),
-            pose_estimate: initial_pose,
+            mode: 1,
+            show_help: false,
+            keymap: keymap,
+            app_modes: vec![send_pose, teleop, image_view],
         }
     }
 
@@ -118,133 +82,98 @@ impl App {
         Ok(terminal)
     }
 
-    pub fn compute_bounds(&mut self, tf_listener: Arc<rustros_tf::TfListener>) {
-        // 0.5 is the height width ratio of terminal chars
-        let scale_factor = self.terminal_size.0 as f64 / self.terminal_size.1 as f64 * 0.5;
-        let res = tf_listener.clone().lookup_transform(
-            &self.static_frame,
-            &self.robot_frame,
-            rosrust::Time::new(),
-        );
-        match &res {
-            Ok(res) => res,
-            Err(_e) => return,
-        };
-        let tf = res.as_ref().unwrap();
-
-        self.bounds = vec![
-            tf.transform.translation.x + self.initial_bounds[0] / self.zoom * scale_factor,
-            tf.transform.translation.x + self.initial_bounds[1] / self.zoom * scale_factor,
-            tf.transform.translation.y + self.initial_bounds[2] / self.zoom,
-            tf.transform.translation.y + self.initial_bounds[3] / self.zoom,
-        ];
+    pub fn run(&mut self) {
+        self.app_modes[self.mode - 1].run();
     }
 
-    pub fn increase_zoom(&mut self) {
-        self.zoom += self.zoom_factor;
-    }
-
-    pub fn decrease_zoom(&mut self) {
-        self.zoom -= self.zoom_factor;
-    }
-
-    pub fn move_pose_estimate(&mut self, x: f64, y: f64, yaw: f64) {
-        let new_yaw = self.pose_estimate.rotation.angle() + yaw;
-        let new_x = x * new_yaw.cos() - y * new_yaw.sin() + self.pose_estimate.translation.x;
-        let new_y = x * new_yaw.sin() + y * new_yaw.cos() + self.pose_estimate.translation.y;
-        self.pose_estimate = Isometry2::new(Vector2::new(new_x, new_y), new_yaw);
-    }
-
-    pub fn get_pose_estimate(&self) -> rosrust_msg::geometry_msgs::Transform {
-        transformation::iso2d_to_ros(&self.pose_estimate)
-    }
-
-    pub fn deactivate_image_subs(&mut self) {
-        for sub in self.listeners.images.iter_mut() {
-            sub.deactivate();
+    pub fn draw(&self, f: &mut Frame<B>) {
+        if self.show_help {
+            self.show_help(f);
+        } else {
+            self.app_modes[self.mode - 1].draw(f);
         }
     }
 
-    pub fn activate_next_image_sub(&mut self) {
-        let n_subs = &self.listeners.images.len();
-        for (i, sub) in self.listeners.images.iter_mut().enumerate() {
-            if sub.is_active() {
-                sub.deactivate();
-                if i < n_subs - 1 {
-                    let _ = &self.listeners.images[i + 1].activate();
-                } else {
-                    let _ = &self.listeners.images[0].activate();
-                }
-                return;
+    pub fn handle_input(&mut self, input: &String) {
+        if input == app_modes::input::SHOW_HELP {
+            if !self.show_help {
+                self.show_help = true;
+                self.app_modes[self.mode - 1].handle_input(input); // allows apps to do specific actions when help is called
+            } else {
+                self.show_help = false;
             }
         }
-        if n_subs > &0 {
-            let _ = &self.listeners.images[0].activate();
-        }
-    }
-
-    pub fn draw_image<B>(&mut self, f: &mut Frame<B>)
-    where
-        B: Backend,
-    {
-        let chunks = Layout::default()
-            .constraints([Constraint::Percentage(100)].as_ref())
-            .split(f.size());
-        for image_sub in &self.listeners.images {
-            if image_sub.is_active() {
-                let image = image_sub.img.read().unwrap();
-                let widget = Image::with_img(image.clone())
-                    .color_mode(ColorMode::Rgb);
-                f.render_widget(widget, chunks[0]);
-                break;
+        let mut new_mode = 100;
+        match input.trim().parse::<usize>() {
+            Ok(mode) => {
+                new_mode = mode;
             }
+            Err(_e) => match input.as_str() {
+                app_modes::input::MODE_1 => new_mode = 1,
+                app_modes::input::MODE_2 => new_mode = 2,
+                app_modes::input::MODE_3 => new_mode = 3,
+                app_modes::input::MODE_4 => new_mode = 4,
+                app_modes::input::MODE_5 => new_mode = 5,
+                app_modes::input::MODE_6 => new_mode = 6,
+                app_modes::input::MODE_7 => new_mode = 7,
+                app_modes::input::MODE_8 => new_mode = 8,
+                app_modes::input::MODE_9 => new_mode = 9,
+                _ => {}
+            },
         }
+        if new_mode != 100 && new_mode != self.mode && new_mode <= self.app_modes.len() {
+            self.app_modes[self.mode - 1].reset();
+            self.mode = new_mode;
+            self.app_modes[self.mode - 1].reset();
+            return;
+        }
+        if self.show_help {
+            return;
+        }
+        self.app_modes[self.mode - 1].handle_input(input);
     }
 
-    pub fn show_help<B>(&mut self, f: &mut Frame<B>)
+    pub fn show_help(&self, f: &mut Frame<B>)
     where
         B: Backend,
     {
         // Text
-        let key_bindings_raw = vec![
-            ["w", "Shifts the pose estimate positively along the x axis."],
-            ["s", "Shifts the pose estimate negatively along the x axis."],
-            ["d", "Shifts the pose estimate positively along the y axis."],
-            ["a", "Shifts the pose estimate negatively along the y axis."],
-            ["q", "Rotates the pose estimate counter-clockwise."],
-            ["e", "Rotates the pose estimate clockwise."],
-            ["t", "Enter/Exit teleoperating mode"],
-            ["Esc", "Resets the pose estimate."],
-            ["Enter", "Sends the pose estimate."],
-            ["-", "Decreases the zoom."],
-            ["=", "Increases the zoom."],
-            ["i", "Toggle image mode."],
+        let mut key_bindings_raw: Vec<[String; 2]> = self
+            .app_modes
+            .iter()
+            .enumerate()
+            .map(|(i, mode)| {
+                [
+                    format!("Switch to mode {}", (i + 1)),
+                    "Switch to ".to_string() + &mode.get_name() + &" mode.".to_string(),
+                ]
+            })
+            .collect();
+        key_bindings_raw.push(["".to_string(), "".to_string()]);
+        key_bindings_raw.extend(self.app_modes[self.mode - 1].get_keymap());
+        key_bindings_raw.extend([
+            ["".to_string(), "".to_string()],
             [
-                "k",
-                "Increases the step size for manipulating the pose estimate.",
+                app_modes::input::SHOW_HELP.to_string(),
+                "Opens/closes this page.".to_string(),
             ],
-            [
-                "j",
-                "Decreases the step size for manipulating the pose estimate.",
-            ],
-            ["h", "Shows this page."],
-            ["Ctrl+c", "Quits the application."],
-        ];
-        let explanation_raw = vec![
-            "", // Leave some space from the top
-            "Welcome to TermViz!",
-            "",
-            "To get started, take a look at the configuration file, which is located in ~/.config/termviz/termviz.yml.",
-            "",
-            "Press 't' to enter/exit teleoperating mode, where the configured keys (default wasd qe) are used to move the robot. \
-            When entering the mode, a zero velocity vector is sent, stopping the robot. \
-            Additionally, any button but the configured ones will stop the robot.",
-            "",
-            "Press any key to go back to the robot view, or Ctrl+c to exit.",
-            "", // Leave some space to the bottom
-        ];
+            ["Ctrl+c".to_string(), "Quits the application.".to_string()],
+        ]);
+        for e in &mut key_bindings_raw {
+            match self.keymap.get(&e[0]) {
+                Some(elem) => e[0] = elem.clone(),
+                None => (),
+            }
+        }
+        for i in 0..self.app_modes.len() {
+            if key_bindings_raw[i][0].contains("Switch") {
+                key_bindings_raw[i][0] = (i + 1).to_string();
+            } else {
+                key_bindings_raw[i][0] = (i + 1).to_string() + ", " + &key_bindings_raw[i][0];
+            }
+        }
         let title_text = vec![Spans::from(Span::styled(
-            "TermViz",
+            "TermViz - ".to_string() + &self.app_modes[self.mode - 1].get_name(),
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         ))];
 
@@ -255,7 +184,10 @@ impl App {
             .constraints(
                 [
                     Constraint::Length(3), // Title + 2 borders
-                    Constraint::Min(u16::try_from(explanation_raw.len() + 2).unwrap()), // Text + 2 borders
+                    Constraint::Length(
+                        u16::try_from(self.app_modes[self.mode - 1].get_description().len() + 2)
+                            .unwrap(),
+                    ), // Text + 2 borders
                     Constraint::Min(u16::try_from(key_bindings_raw.len() + 3).unwrap()), // Table + header + space
                 ]
                 .as_ref(),
@@ -265,7 +197,8 @@ impl App {
         // Conversion into tui stuff
         let key_bindings_rows = key_bindings_raw.into_iter().map(|x| Row::new(x));
 
-        let explanation_spans: std::vec::Vec<tui::text::Spans> = explanation_raw
+        let explanation_spans: std::vec::Vec<tui::text::Spans> = self.app_modes[self.mode - 1]
+            .get_description()
             .into_iter()
             .map(|x| Spans::from(Span::raw(x)))
             .collect();
@@ -290,96 +223,11 @@ impl App {
                     .borders(Borders::ALL),
             )
             .header(Row::new(vec!["Key", "Function"]).style(Style::default().fg(Color::Yellow)))
-            .widths(&[Constraint::Min(6), Constraint::Percentage(100)])
+            .widths(&[Constraint::Min(9), Constraint::Percentage(100)])
             .style(Style::default().fg(Color::White))
             .column_spacing(10);
         f.render_widget(title, areas[0]);
         f.render_widget(explanation, areas[1]);
         f.render_widget(key_bindings, areas[2]);
-    }
-
-    pub fn draw_robot<B>(&mut self, f: &mut Frame<B>, tf_listener: Arc<rustros_tf::TfListener>)
-    where
-        B: Backend,
-    {
-        let chunks = Layout::default()
-            .constraints([Constraint::Percentage(100)].as_ref())
-            .split(f.size());
-
-        let base_link_pose = tf_listener
-            .lookup_transform(&self.static_frame, &self.robot_frame, rosrust::Time::new())
-            .unwrap()
-            .transform;
-        self.initial_pose = transformation::ros_to_iso2d(&base_link_pose);
-        if matches!(self.mode, AppModes::RobotView) {
-            self.pose_estimate = self.initial_pose.clone();
-        }
-        let footprint = get_current_footprint(&base_link_pose, &self.footprint);
-
-        let canvas = Canvas::default()
-            .block(
-                Block::default()
-                    .title(format!("{} - Press h for help", self.mode.as_ref()))
-                    .borders(Borders::NONE),
-            )
-            .x_bounds([self.bounds[0], self.bounds[1]])
-            .y_bounds([self.bounds[2], self.bounds[3]])
-            .paint(|ctx| {
-                for map in &self.listeners.maps {
-                    ctx.draw(&Points {
-                        coords: &map.points.read().unwrap(),
-                        color: Color::Rgb(
-                            map.config.color.r,
-                            map.config.color.g,
-                            map.config.color.b,
-                        ),
-                    });
-                }
-                ctx.layer();
-                for elem in &footprint {
-                    ctx.draw(&Line {
-                        x1: elem.0,
-                        y1: elem.1,
-                        x2: elem.2,
-                        y2: elem.3,
-                        color: Color::Blue,
-                    });
-                }
-                for laser in &self.listeners.lasers {
-                    ctx.draw(&Points {
-                        coords: &laser.points.read().unwrap(),
-                        color: Color::Rgb(
-                            laser.config.color.r,
-                            laser.config.color.g,
-                            laser.config.color.b,
-                        ),
-                    });
-                }
-
-                for line in self.listeners.markers.get_lines() {
-                    ctx.draw(&line);
-                }
-
-                for line in get_frame_lines(&base_link_pose, self.axis_length) {
-                    ctx.draw(&line);
-                }
-                if matches!(self.mode, AppModes::SendPose) {
-                    let pose_estimate_ros = transformation::iso2d_to_ros(&self.pose_estimate);
-                    for elem in &get_current_footprint(&pose_estimate_ros, &self.footprint) {
-                        ctx.draw(&Line {
-                            x1: elem.0,
-                            y1: elem.1,
-                            x2: elem.2,
-                            y2: elem.3,
-                            color: Color::Gray,
-                        });
-                    }
-                    for mut line in get_frame_lines(&pose_estimate_ros, self.axis_length) {
-                        line.color = Color::Gray;
-                        ctx.draw(&line);
-                    }
-                }
-            });
-        f.render_widget(canvas, chunks[0]);
     }
 }

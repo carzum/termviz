@@ -9,7 +9,7 @@ exclude = ["assets/*", ".github"]
 
 [dependencies]
 byteorder = "*"
-chrono = "*"
+chrono = "0.2.25"
 image = "*"
 nalgebra = ">=0.29.0"
 rosrust = "0.9"
@@ -19,7 +19,7 @@ tui-image = { git = "https://github.com/carzum/tui-image" }
 serde = { version = "*", features = ["derive"] }
 serde_derive = "*"
 termion = "1.5"
-timer = "*"
+timer = "0.1.6"
 tui = "0.16.0"
 strum = "0.23"
 strum_macros = "0.23"

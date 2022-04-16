@@ -2,8 +2,9 @@
 //!
 //! ROS has a type of message dedicated to visualization: visualization_msgs::Marker.
 //! This module allows to subsribe to topics that publish them and project them into the
-//! 2D plane. Finally, it takes care of their lifecycle: ADD, DELETE and timeout.
+//! 2D offset.y + dimension.y / 2.0ane. Finally, it takes care of their lifecycle: ADD, DELETE and timeout.
 use crate::config::ListenerConfig;
+use nalgebra::base::Vector3;
 use nalgebra::geometry::Isometry3;
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
@@ -50,7 +51,7 @@ fn from_point_strips(strips: &Vec<Vec<Point3<f64>>>, color: &Color) -> Vec<Line>
 
 ///Creates the visible lines for a cube.
 ///
-/// If the cube is parallel to the floor, the visible lines are simply the 4 top ones.
+/// If the cube is parallel to the z-offset.y + dimension.y / 2.0an, the visible lines are simoffset.y + dimension.y / 2.0y the 4 top ones.
 /// Else, we draw all 12 edges.
 /// Arguments:
 /// - `dimension`: size of the cube as width, length, height.
@@ -64,62 +65,116 @@ fn parse_cube(
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
     let angles = iso.rotation.euler_angles();
-    let width = dimension.x / 2.0;
-    let length = dimension.y / 2.0;
-    let height = dimension.z / 2.0;
-
-    let pw = offset.x + width;
-    let mw = offset.x - width;
-    let pl = offset.y + length;
-    let ml = offset.y - length;
 
     let mut pointss: Vec<Vec<Point3<f64>>> = Vec::new();
 
-    if angles.0.abs() < 0.0001 && angles.1.abs() < 0.0001 {
-        // cube about parallel to floor, only draw the top
-        let points = vec![
-            iso.transform_point(&Point3::new(pw, pl, 0.0)),
-            iso.transform_point(&Point3::new(pw, ml, 0.0)),
-            iso.transform_point(&Point3::new(mw, ml, 0.0)),
-            iso.transform_point(&Point3::new(mw, pl, 0.0)),
-            iso.transform_point(&Point3::new(pw, pl, 0.0)),
-        ];
-        pointss.push(points)
-    } else {
+    let face_top = vec![
+        iso.transform_point(&Point3::new(
+            offset.x + dimension.x / 2.0,
+            offset.y + dimension.y / 2.0,
+            offset.z + dimension.z / 2.0,
+        )),
+        iso.transform_point(&Point3::new(
+            offset.x + dimension.x / 2.0,
+            offset.y - dimension.y / 2.0,
+            offset.z + dimension.z / 2.0,
+        )),
+        iso.transform_point(&Point3::new(
+            offset.x - dimension.x / 2.0,
+            offset.y - dimension.y / 2.0,
+            offset.z + dimension.z / 2.0,
+        )),
+        iso.transform_point(&Point3::new(
+            offset.x - dimension.x / 2.0,
+            offset.y + dimension.y / 2.0,
+            offset.z + dimension.z / 2.0,
+        )),
+        iso.transform_point(&Point3::new(
+            offset.x + dimension.x / 2.0,
+            offset.y + dimension.y / 2.0,
+            offset.z + dimension.z / 2.0,
+        )),
+    ];
+    pointss.push(face_top);
+
+    if angles.0.abs() > 0.0001 || angles.1.abs() > 0.0001 {
         // Other faces may be visible, render all of them
-        let ph = offset.z + height;
-        let mh = offset.z - height;
-        let face_top = vec![
-            iso.transform_point(&Point3::new(pw, pl, ph)),
-            iso.transform_point(&Point3::new(pw, ml, ph)),
-            iso.transform_point(&Point3::new(mw, ml, ph)),
-            iso.transform_point(&Point3::new(mw, pl, ph)),
-            iso.transform_point(&Point3::new(mw, pl, ph)),
-        ];
         let face_bottom = vec![
-            iso.transform_point(&Point3::new(pw, pl, mh)),
-            iso.transform_point(&Point3::new(pw, ml, mh)),
-            iso.transform_point(&Point3::new(mw, ml, mh)),
-            iso.transform_point(&Point3::new(mw, pl, mh)),
-            iso.transform_point(&Point3::new(mw, pl, mh)),
+            iso.transform_point(&Point3::new(
+                offset.x + dimension.x / 2.0,
+                offset.y + dimension.y / 2.0,
+                offset.z - dimension.z / 2.0,
+            )),
+            iso.transform_point(&Point3::new(
+                offset.x + dimension.x / 2.0,
+                offset.y - dimension.y / 2.0,
+                offset.z - dimension.z / 2.0,
+            )),
+            iso.transform_point(&Point3::new(
+                offset.x - dimension.x / 2.0,
+                offset.y - dimension.y / 2.0,
+                offset.z - dimension.z / 2.0,
+            )),
+            iso.transform_point(&Point3::new(
+                offset.x - dimension.x / 2.0,
+                offset.y + dimension.y / 2.0,
+                offset.z - dimension.z / 2.0,
+            )),
+            iso.transform_point(&Point3::new(
+                offset.x + dimension.x / 2.0,
+                offset.y + dimension.y / 2.0,
+                offset.z - dimension.z / 2.0,
+            )),
         ];
         let a = vec![
-            iso.transform_point(&Point3::new(pw, pl, ph)),
-            iso.transform_point(&Point3::new(pw, pl, mh)),
+            iso.transform_point(&Point3::new(
+                offset.x + dimension.x / 2.0,
+                offset.y + dimension.y / 2.0,
+                offset.z + dimension.z / 2.0,
+            )),
+            iso.transform_point(&Point3::new(
+                offset.x + dimension.x / 2.0,
+                offset.y + dimension.y / 2.0,
+                offset.z - dimension.z / 2.0,
+            )),
         ];
         let b = vec![
-            iso.transform_point(&Point3::new(mw, pl, ph)),
-            iso.transform_point(&Point3::new(mw, pl, mh)),
+            iso.transform_point(&Point3::new(
+                offset.x - dimension.x / 2.0,
+                offset.y + dimension.y / 2.0,
+                offset.z + dimension.z / 2.0,
+            )),
+            iso.transform_point(&Point3::new(
+                offset.x - dimension.x / 2.0,
+                offset.y + dimension.y / 2.0,
+                offset.z - dimension.z / 2.0,
+            )),
         ];
         let c = vec![
-            iso.transform_point(&Point3::new(pw, ml, ph)),
-            iso.transform_point(&Point3::new(pw, ml, mh)),
+            iso.transform_point(&Point3::new(
+                offset.x + dimension.x / 2.0,
+                offset.y - dimension.y / 2.0,
+                offset.z + dimension.z / 2.0,
+            )),
+            iso.transform_point(&Point3::new(
+                offset.x + dimension.x / 2.0,
+                offset.y - dimension.y / 2.0,
+                offset.z - dimension.z / 2.0,
+            )),
         ];
         let d = vec![
-            iso.transform_point(&Point3::new(mw, ml, ph)),
-            iso.transform_point(&Point3::new(mw, ml, mh)),
+            iso.transform_point(&Point3::new(
+                offset.x - dimension.x / 2.0,
+                offset.y - dimension.y / 2.0,
+                offset.z + dimension.z / 2.0,
+            )),
+            iso.transform_point(&Point3::new(
+                offset.x - dimension.x / 2.0,
+                offset.y - dimension.y / 2.0,
+                offset.z - dimension.z / 2.0,
+            )),
         ];
-        pointss.extend([face_top, face_bottom, a, b, c, d]);
+        pointss.extend([face_bottom, a, b, c, d]);
     }
 
     return from_point_strips(&pointss, color);
@@ -143,21 +198,28 @@ fn parse_arrow_msg(
                 y2: p2.y,
                 color: *color,
             });
+            //calculate 2 points representing the end of the head
             let angle = PI / 4.0;
             let r = msg.scale.y / 2.0 / angle.cos();
             let a = PI - angle;
+            let b = PI + angle;
+            // transform points
+            let p3_right =
+                iso.transform_point(&Point3::new(msg.scale.x + r * a.cos(), r * a.sin(), 0.0));
+            let p3_left =
+                iso.transform_point(&Point3::new(msg.scale.x + r * b.cos(), r * b.sin(), 0.0));
             lines.push(Line {
                 x1: p2.x,
                 y1: p2.y,
-                x2: p2.x + r * a.cos(),
-                y2: p2.y + r * a.sin(),
+                x2: p3_right.x,
+                y2: p3_right.y,
                 color: *color,
             });
             lines.push(Line {
                 x1: p2.x,
                 y1: p2.y,
-                x2: p2.x - r * a.cos(),
-                y2: p2.y - r * a.sin(),
+                x2: p3_left.x,
+                y2: p3_left.y,
                 color: *color,
             });
             lines
@@ -180,23 +242,28 @@ fn parse_arrow_msg(
                 color: *color,
             });
 
-            let shaft_angle = (p2.y - p1.y).atan2(p2.x - p1.x);
-            let angle = msg.scale.y.atan2(2.0 * msg.scale.x);
-            let r = (msg.scale.x.powi(2) + msg.scale.y.powi(2)).sqrt();
-            let a = shaft_angle + PI - angle;
-            let b = shaft_angle + PI + angle;
+            // get angle at the head of the arrow and calculate head's lines in head transform
+            let head_trafo = Isometry3::face_towards(&p2, &p1, &Vector3::y());
+            let half_head_width = msg.scale.y / 2.0;
+            let angle = half_head_width.atan2(msg.scale.z);
+            let r = (half_head_width.powi(2) + msg.scale.z.powi(2)).sqrt();
+
+            let p3_right =
+                head_trafo.transform_point(&Point3::new(0.0, r * angle.sin(), r * angle.cos()));
+            let p3_left =
+                head_trafo.transform_point(&Point3::new(0.0, -r * angle.sin(), r * angle.cos()));
             lines.push(Line {
                 x1: p2.x,
                 y1: p2.y,
-                x2: p2.x + r * a.cos(),
-                y2: p2.y + r * a.sin(),
+                x2: p3_right.x,
+                y2: p3_right.y,
                 color: *color,
             });
             lines.push(Line {
                 x1: p2.x,
                 y1: p2.y,
-                x2: p2.x + r * b.cos(),
-                y2: p2.y + r * b.sin(),
+                x2: p3_left.x,
+                y2: p3_left.y,
                 color: *color,
             });
 
@@ -213,16 +280,20 @@ fn parse_cube_msg(
     color: &tui::style::Color,
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
-    return parse_cube(
-        &msg.scale,
-        &rosrust_msg::geometry_msgs::Point {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        },
-        color,
-        iso,
-    );
+    let center_offset_msg = msg.points.get(0);
+    if center_offset_msg.is_none() {
+        return parse_cube(
+            &msg.scale,
+            &rosrust_msg::geometry_msgs::Point {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            color,
+            iso,
+        );
+    }
+    return parse_cube(&msg.scale, &center_offset_msg.unwrap(), color, iso);
 }
 
 fn parse_cube_list_msg(

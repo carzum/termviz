@@ -1,15 +1,14 @@
 use crate::config::{ListenerConfig, ListenerConfigColor};
+use crate::image;
 use crate::laser;
 use crate::map;
 use crate::marker;
-use crate::image;
 
 use std::sync::Arc;
 
 pub struct Listeners {
     pub lasers: Vec<laser::LaserListener>,
-    pub markers: Vec<marker::MarkerListener>,
-    pub marker_arrays: Vec<marker::MarkerArrayListener>,
+    pub markers: marker::MarkersListener,
     pub maps: Vec<map::MapListener>,
     pub images: Vec<image::ImageListener>,
 }
@@ -33,24 +32,14 @@ impl Listeners {
             ));
         }
 
-        let mut markers: Vec<marker::MarkerListener> = Vec::new();
+        let mut markers = marker::MarkersListener::new(tf_listener.clone(), static_frame.clone());
         for marker_config in marker_topics {
-            markers.push(marker::MarkerListener::new(
-                marker_config,
-                tf_listener.clone(),
-                static_frame.clone(),
-            ));
+            markers.add_marker_listener(&marker_config);
         }
 
-        let mut marker_arrays: Vec<marker::MarkerArrayListener> = Vec::new();
         for m_config in marker_array_topics {
-            marker_arrays.push(marker::MarkerArrayListener::new(
-                m_config,
-                tf_listener.clone(),
-                static_frame.clone(),
-            ));
+            markers.add_marker_array_listener(&m_config);
         }
-
 
         let mut maps: Vec<map::MapListener> = Vec::new();
         for map_config in map_topics {
@@ -69,9 +58,8 @@ impl Listeners {
         Listeners {
             lasers,
             markers,
-            marker_arrays,
             maps,
-            images
+            images,
         }
     }
 }

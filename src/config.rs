@@ -1,3 +1,4 @@
+use crate::app_modes::input;
 use confy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -23,24 +24,16 @@ pub struct ListenerConfigColor {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TeleopConfig {
-    pub key_mapping: HashMap<String, (String, i8)>,
-    pub increment: f64,
+    pub default_increment: f64,
+    pub increment_step: f64,
     pub cmd_vel_topic: String,
 }
 
 impl Default for TeleopConfig {
     fn default() -> TeleopConfig {
-        let default_mapping = HashMap::from([
-            ("w".to_string(), ("x".to_string(), 1)),
-            ("s".to_string(), ("x".to_string(), -1)),
-            ("q".to_string(), ("y".to_string(), 1)),
-            ("e".to_string(), ("y".to_string(), -1)),
-            ("a".to_string(), ("theta".to_string(), 1)),
-            ("d".to_string(), ("theta".to_string(), -1)),
-        ]);
         TeleopConfig {
-            key_mapping: default_mapping,
-            increment: 0.1,
+            default_increment: 0.1,
+            increment_step: 0.1,
             cmd_vel_topic: "cmd_vel".to_string(),
         }
     }
@@ -55,16 +48,18 @@ pub struct TermvizConfig {
     pub marker_topics: Vec<ListenerConfig>,
     pub image_topics: Vec<ListenerConfig>,
     pub marker_array_topics: Vec<ListenerConfig>,
+    pub send_pose_topic: String,
     pub target_framerate: i64,
     pub axis_length: f64,
     pub visible_area: Vec<f64>, //Borders of map from center in Meter
     pub zoom_factor: f64,
-    pub teleop_key_mapping: TeleopConfig,
+    pub key_mapping: HashMap<String, String>,
+    pub teleop: TeleopConfig,
 }
 
 impl Default for TermvizConfig {
     fn default() -> Self {
-        let conf = TermvizConfig {
+        TermvizConfig {
             fixed_frame: "map".to_string(),
             robot_frame: "base_link".to_string(),
             map_topics: vec![ListenerConfigColor {
@@ -88,13 +83,30 @@ impl Default for TermvizConfig {
             image_topics: vec![ListenerConfig {
                 topic: "image_rect".to_string(),
             }],
+            send_pose_topic: "initialpose".to_string(),
             target_framerate: 30,
             axis_length: 0.5,
             visible_area: vec![-5., 5., -5., 5.],
             zoom_factor: 0.1,
-            teleop_key_mapping: TeleopConfig::default(),
-        };
-        conf
+            key_mapping: HashMap::from([
+                (input::UP.to_string(), "w".to_string()),
+                (input::DOWN.to_string(), "s".to_string()),
+                (input::LEFT.to_string(), "a".to_string()),
+                (input::RIGHT.to_string(), "d".to_string()),
+                (input::ROTATE_LEFT.to_string(), "q".to_string()),
+                (input::ROTATE_RIGHT.to_string(), "e".to_string()),
+                (input::CANCEL.to_string(), "Esc".to_string()),
+                (input::CONFIRM.to_string(), "Enter".to_string()),
+                (input::ZOOM_IN.to_string(), "=".to_string()),
+                (input::ZOOM_OUT.to_string(), "-".to_string()),
+                (input::INCREMENT_STEP.to_string(), "k".to_string()),
+                (input::DECREMENT_STEP.to_string(), "j".to_string()),
+                (input::SHOW_HELP.to_string(), "h".to_string()),
+                (input::MODE_2.to_string(), "t".to_string()),
+                (input::MODE_3.to_string(), "i".to_string()),
+            ]),
+            teleop: TeleopConfig::default(),
+        }
     }
 }
 
@@ -109,6 +121,12 @@ pub fn get_config() -> Result<TermvizConfig, confy::ConfyError> {
         if Path::new(sys_path).exists() {
             // fallback to system config
             cfg = confy::load_path(sys_path)?;
+        } else {
+            let res = confy::store("termviz", "termviz", &cfg);
+            match res {
+                Ok(v) => println!("Stored default config: {:?}", v),
+                Err(e) => println!("Error storing default config: {:?}", e),
+            }
         }
     };
     Ok(cfg)

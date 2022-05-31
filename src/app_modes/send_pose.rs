@@ -1,3 +1,5 @@
+//! Send pose mode allows to send a pose on the given topic.
+
 use crate::app_modes::viewport::{UseViewport, Viewport};
 use crate::app_modes::{input, AppMode, BaseMode};
 use crate::footprint::get_current_footprint;
@@ -10,6 +12,7 @@ use tui::backend::Backend;
 use tui::style::Color;
 use tui::widgets::canvas::{Context, Line};
 
+/// Represents the send pose mode.
 pub struct SendPose {
     viewport: Rc<RefCell<Viewport>>,
     increment: f64,

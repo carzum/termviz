@@ -1,3 +1,5 @@
+//! Image view mode allows to visualize images from the given topics.
+
 use self::image::ImageListener;
 use crate::app_modes::{input, AppMode, BaseMode, Drawable};
 use crate::config::ListenerConfig;
@@ -14,6 +16,8 @@ pub struct ImageView {
     active_sub: usize,
 }
 
+
+/// Represents the image view mode.
 impl ImageView {
     pub fn new(image_topics: Vec<ListenerConfig>) -> ImageView {
         let mut images: Vec<image::ImageListener> = Vec::new();

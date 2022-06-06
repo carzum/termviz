@@ -1,6 +1,6 @@
 use self::image::ImageListener;
 use crate::app_modes::{input, AppMode, BaseMode, Drawable};
-use crate::config::ListenerConfig;
+use crate::config::ImageListenerConfig;
 use crate::image;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Layout};
@@ -15,7 +15,7 @@ pub struct ImageView {
 }
 
 impl ImageView {
-    pub fn new(image_topics: Vec<ListenerConfig>) -> ImageView {
+    pub fn new(image_topics: Vec<ImageListenerConfig>) -> ImageView {
         let mut images: Vec<image::ImageListener> = Vec::new();
         for image_config in image_topics {
             images.push(image::ImageListener::new(image_config));
@@ -57,6 +57,12 @@ impl AppMode for ImageView {
                     self.images[self.active_sub].deactivate();
                     self.active_sub = (self.active_sub + 1) % self.images.len();
                 }
+                input::ROTATE_RIGHT => {
+                    self.images[self.active_sub].rotate(90);
+                }
+                input::ROTATE_LEFT => {
+                    self.images[self.active_sub].rotate(-90);
+                }
                 _ => (),
             }
         }
@@ -75,6 +81,14 @@ impl AppMode for ImageView {
             [
                 input::RIGHT.to_string(),
                 "Switches to the next image.".to_string(),
+            ],
+            [
+                input::ROTATE_LEFT.to_string(),
+                "Rotates the image counter-clockwise.".to_string(),
+            ],
+            [
+                input::ROTATE_RIGHT.to_string(),
+                "Rotates the image clockwise.".to_string(),
             ],
         ]
     }

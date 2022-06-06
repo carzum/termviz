@@ -1,6 +1,6 @@
-use crate::config::ListenerConfig;
+use crate::config::ImageListenerConfig;
 use byteorder::{ByteOrder, LittleEndian};
-use image::{DynamicImage, ImageBuffer, RgbaImage};
+use image::{imageops, DynamicImage, ImageBuffer, RgbaImage};
 use rosrust;
 use rosrust_msg;
 use std::sync::{Arc, RwLock};
@@ -71,31 +71,41 @@ fn read_u16(vec: &Vec<u8>) -> Vec<u8> {
 }
 
 pub struct ImageListener {
-    pub config: ListenerConfig,
+    pub config: ImageListenerConfig,
     pub img: Arc<RwLock<RgbaImage>>,
     _subscriber: Option<rosrust::Subscriber>,
+    _rotation: Arc<RwLock<i64>>,
 }
 
 impl ImageListener {
-    pub fn new(config: ListenerConfig) -> ImageListener {
+    pub fn new(config: ImageListenerConfig) -> ImageListener {
         let img = Arc::new(RwLock::new(RgbaImage::new(0, 0)));
-
+        let default_rotation = config.rotation.clone();
         ImageListener {
             config,
             img,
             _subscriber: None,
+            _rotation: Arc::new(RwLock::new(default_rotation)),
         }
     }
 
     pub fn setup_sub(&mut self) {
         let cb_img = self.img.clone();
+        let cb_rotation = self._rotation.clone();
         let sub = rosrust::subscribe(
             &self.config.topic,
             1,
             move |img_msg: rosrust_msg::sensor_msgs::Image| {
-                let img = read_img_msg(img_msg);
+                let mut img = read_img_msg(img_msg).to_rgba8();
+                let rot = cb_rotation.read().unwrap();
+                match *rot {
+                    90 => img = imageops::rotate90(&img),
+                    180 => img = imageops::rotate180(&img),
+                    270 => img = imageops::rotate270(&img),
+                    _ => (),
+                }
                 let mut cb_img = cb_img.write().unwrap();
-                *cb_img = img.to_rgba8();
+                *cb_img = img;
             },
         )
         .unwrap();
@@ -112,5 +122,18 @@ impl ImageListener {
 
     pub fn deactivate(&mut self) {
         self._subscriber = None;
+    }
+
+    pub fn rotate(&mut self, angle: i64) {
+        let mut rot = *self._rotation.read().unwrap();
+        rot += angle;
+        if rot < 0 {
+            rot = 270;
+        }
+        if rot > 270 {
+            rot = 0;
+        }
+        let mut rotation = self._rotation.write().unwrap();
+        *rotation = rot;
     }
 }

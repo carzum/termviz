@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
+fn default_int() -> i64 {
+    0
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Color {
     pub r: u8,
@@ -14,6 +18,13 @@ pub struct Color {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListenerConfig {
     pub topic: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImageListenerConfig {
+    pub topic: String,
+    #[serde(default = "default_int")]
+    pub rotation: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -46,7 +57,7 @@ pub struct TermvizConfig {
     pub map_topics: Vec<ListenerConfigColor>,
     pub laser_topics: Vec<ListenerConfigColor>,
     pub marker_topics: Vec<ListenerConfig>,
-    pub image_topics: Vec<ListenerConfig>,
+    pub image_topics: Vec<ImageListenerConfig>,
     pub marker_array_topics: Vec<ListenerConfig>,
     pub send_pose_topic: String,
     pub target_framerate: i64,
@@ -80,8 +91,9 @@ impl Default for TermvizConfig {
             marker_topics: vec![ListenerConfig {
                 topic: "marker".to_string(),
             }],
-            image_topics: vec![ListenerConfig {
+            image_topics: vec![ImageListenerConfig {
                 topic: "image_rect".to_string(),
+                rotation: 0,
             }],
             send_pose_topic: "initialpose".to_string(),
             target_framerate: 30,

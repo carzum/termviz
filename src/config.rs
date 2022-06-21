@@ -33,6 +33,14 @@ pub struct ListenerConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct PoseListenerConfig {
+    pub topic: String,
+    pub style: String,
+    pub color: Color,
+    pub length: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ImageListenerConfig {
     pub topic: String,
     #[serde(default = "default_int")]
@@ -80,6 +88,9 @@ pub struct TermvizConfig {
     pub marker_topics: Vec<ListenerConfig>,
     pub image_topics: Vec<ImageListenerConfig>,
     pub marker_array_topics: Vec<ListenerConfig>,
+    pub pose_stamped_topics: Vec<PoseListenerConfig>,
+    pub pose_array_topics: Vec<PoseListenerConfig>,
+    pub path_topics: Vec<PoseListenerConfig>,
     pub send_pose_topic: String,
     pub target_framerate: i64,
     pub axis_length: f64,
@@ -116,6 +127,36 @@ impl Default for TermvizConfig {
             image_topics: vec![ImageListenerConfig {
                 topic: "image_rect".to_string(),
                 rotation: 0,
+            }],
+            pose_stamped_topics: vec![PoseListenerConfig {
+                topic: "pose_stamped".to_string(),
+                style: "axis".to_string(),
+                color: Color {
+                    r: 255,
+                    g: 0,
+                    b: 0,
+                },
+                length: 0.5,
+            }],
+            pose_array_topics: vec![PoseListenerConfig {
+                topic: "pose_array".to_string(),
+                style: "arrow".to_string(),
+                color: Color {
+                    r: 255,
+                    g: 0,
+                    b: 0,
+                },
+                length: 0.5,
+            }],
+            path_topics: vec![PoseListenerConfig {
+                topic: "path".to_string(),
+                style: "line".to_string(),
+                color: Color {
+                    r: 0,
+                    g: 255,
+                    b: 0,
+                },
+                length: 0.5,
             }],
             send_pose_topic: "initialpose".to_string(),
             target_framerate: 30,

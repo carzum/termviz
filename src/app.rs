@@ -41,6 +41,9 @@ impl<B: Backend> App<B> {
             config.marker_topics,
             config.marker_array_topics,
             config.map_topics,
+            config.pose_stamped_topics,
+            config.pose_array_topics,
+            config.path_topics,
         );
         let viewport = Rc::new(RefCell::new(app_modes::viewport::Viewport::new(
             &config.fixed_frame,

@@ -28,6 +28,21 @@ pub fn ros_to_iso2d(tf: &rosrust_msg::geometry_msgs::Transform) -> Isometry2<f64
     Isometry2::new(Vector2::new(tf.translation.x, tf.translation.y), yaw)
 }
 
+pub fn ros_pose_to_isometry(pose: &rosrust_msg::geometry_msgs::Pose) -> Isometry3<f64> {
+    let tra = Translation3::new(
+        pose.position.x,
+        pose.position.y,
+        pose.position.z,
+    );
+    let rot = UnitQuaternion::new_normalize(Quaternion::new(
+        pose.orientation.w,
+        pose.orientation.x,
+        pose.orientation.y,
+        pose.orientation.z,
+    ));
+    Isometry3::from_parts(tra, rot)
+}
+
 pub fn iso2d_to_ros(tf: &Isometry2<f64>) -> rosrust_msg::geometry_msgs::Transform {
     let rot = UnitQuaternion::from_euler_angles(0.0, 0.0, tf.rotation.angle());
     rosrust_msg::geometry_msgs::Transform {

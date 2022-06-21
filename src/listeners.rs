@@ -1,7 +1,8 @@
-use crate::config::{ListenerConfig, ListenerConfigColor, MapListenerConfig};
+use crate::config::{ListenerConfig, ListenerConfigColor, MapListenerConfig, PoseListenerConfig};
 use crate::laser;
 use crate::map;
 use crate::marker;
+use crate::pose;
 
 use std::sync::Arc;
 
@@ -9,6 +10,9 @@ pub struct Listeners {
     pub lasers: Vec<laser::LaserListener>,
     pub markers: marker::MarkersListener,
     pub maps: Vec<map::MapListener>,
+    pub pose_stamped: Vec<pose::PoseStampedListener>,
+    pub pose_array: Vec<pose::PoseArrayListener>,
+    pub paths: Vec<pose::PathListener>,
 }
 
 impl Listeners {
@@ -19,6 +23,9 @@ impl Listeners {
         marker_topics: Vec<ListenerConfig>,
         marker_array_topics: Vec<ListenerConfig>,
         map_topics: Vec<MapListenerConfig>,
+        pose_stamped_topics: Vec<PoseListenerConfig>,
+        pose_array_topics: Vec<PoseListenerConfig>,
+        path_topics: Vec<PoseListenerConfig>,
     ) -> Listeners {
         let mut lasers: Vec<laser::LaserListener> = Vec::new();
         for laser_config in laser_topics {
@@ -47,10 +54,25 @@ impl Listeners {
             ));
         }
 
+        let pose_stamped = pose_stamped_topics
+            .into_iter()
+            .map(|topic| pose::PoseStampedListener::new(topic))
+            .collect();
+        let pose_array = pose_array_topics
+            .into_iter()
+            .map(|topic| pose::PoseArrayListener::new(topic))
+            .collect();
+        let paths = path_topics
+            .into_iter()
+            .map(|topic| pose::PathListener::new(topic))
+            .collect();
         Listeners {
             lasers,
             markers,
             maps,
+            pose_stamped,
+            pose_array,
+            paths,
         }
     }
 }

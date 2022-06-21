@@ -131,31 +131,19 @@ impl Default for TermvizConfig {
             pose_stamped_topics: vec![PoseListenerConfig {
                 topic: "pose_stamped".to_string(),
                 style: "axis".to_string(),
-                color: Color {
-                    r: 255,
-                    g: 0,
-                    b: 0,
-                },
+                color: Color { r: 255, g: 0, b: 0 },
                 length: 0.5,
             }],
             pose_array_topics: vec![PoseListenerConfig {
                 topic: "pose_array".to_string(),
                 style: "arrow".to_string(),
-                color: Color {
-                    r: 255,
-                    g: 0,
-                    b: 0,
-                },
+                color: Color { r: 255, g: 0, b: 0 },
                 length: 0.5,
             }],
             path_topics: vec![PoseListenerConfig {
                 topic: "path".to_string(),
                 style: "line".to_string(),
-                color: Color {
-                    r: 0,
-                    g: 255,
-                    b: 0,
-                },
+                color: Color { r: 0, g: 255, b: 0 },
                 length: 0.5,
             }],
             send_pose_topic: "initialpose".to_string(),

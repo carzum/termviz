@@ -29,11 +29,7 @@ pub fn ros_to_iso2d(tf: &rosrust_msg::geometry_msgs::Transform) -> Isometry2<f64
 }
 
 pub fn ros_pose_to_isometry(pose: &rosrust_msg::geometry_msgs::Pose) -> Isometry3<f64> {
-    let tra = Translation3::new(
-        pose.position.x,
-        pose.position.y,
-        pose.position.z,
-    );
+    let tra = Translation3::new(pose.position.x, pose.position.y, pose.position.z);
     let rot = UnitQuaternion::new_normalize(Quaternion::new(
         pose.orientation.w,
         pose.orientation.x,

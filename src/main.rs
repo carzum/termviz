@@ -27,14 +27,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let static_frame = conf.fixed_frame;
     let mut key_to_input: HashMap<Key, String> = conf
-    .key_mapping
-    .iter()
-    .map(|(v, k)| match k.as_str() {
-        "Enter" => (Key::Char('\n'), v.clone()),
-        "Esc" => (Key::Esc, v.clone()),
-        _ => (Key::Char(k.chars().next().unwrap()), v.clone()),
-    })
-    .collect();
+        .key_mapping
+        .iter()
+        .map(|(v, k)| match k.as_str() {
+            "Enter" => (Key::Char('\n'), v.clone()),
+            "Esc" => (Key::Esc, v.clone()),
+            _ => (Key::Char(k.chars().next().unwrap()), v.clone()),
+        })
+        .collect();
     for i in 0..9 {
         key_to_input.insert(
             Key::Char(std::char::from_digit(i, 10).unwrap()),

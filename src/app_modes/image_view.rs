@@ -16,7 +16,6 @@ pub struct ImageView {
     active_sub: usize,
 }
 
-
 /// Represents the image view mode.
 impl ImageView {
     pub fn new(image_topics: Vec<ImageListenerConfig>) -> ImageView {

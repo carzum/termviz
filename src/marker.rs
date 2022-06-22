@@ -480,7 +480,7 @@ struct MarkersLifecycle {
     deleted_markers: Arc<Mutex<Vec<(String, i32)>>>,
     guards: Arc<Mutex<HashMap<(String, i32), timer::Guard>>>,
     timer: Arc<Mutex<timer::Timer>>,
-    #[allow(dead_code)]  // because the guard is never used but must be kept
+    #[allow(dead_code)] // because the guard is never used but must be kept
     cleaner_guard: timer::Guard,
 }
 

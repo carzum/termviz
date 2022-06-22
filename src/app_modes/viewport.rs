@@ -1,5 +1,5 @@
 //! A viewport is where markers, maps and other information are shown.
-//! A mode can borrow the viewport to draw whatever is needed. 
+//! A mode can borrow the viewport to draw whatever is needed.
 
 use crate::app_modes::{input, AppMode, Drawable};
 use crate::footprint::get_current_footprint;
@@ -17,7 +17,7 @@ use tui::Frame;
 /// Represents modes that use the viewport.
 pub trait UseViewport: AppMode {
     /// Draws in the viewport
-    /// 
+    ///
     /// # Arguments
     /// - `ctx`: the tui context where to draw.
     fn draw_in_viewport(&self, ctx: &mut Context);

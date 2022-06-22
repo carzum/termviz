@@ -1,5 +1,5 @@
 use crate::app_modes;
-use crate::config::get_config;
+use crate::config::TermvizConfig;
 use crate::footprint::get_footprint;
 use crate::listeners::Listeners;
 use std::cell::RefCell;
@@ -29,11 +29,7 @@ pub struct App<B: Backend> {
 }
 
 impl<B: Backend> App<B> {
-    pub fn new(
-        tf_listener: Arc<rustros_tf::TfListener>,
-        keymap: HashMap<String, String>,
-    ) -> App<B> {
-        let config = get_config().unwrap();
+    pub fn new(tf_listener: Arc<rustros_tf::TfListener>, config: TermvizConfig) -> App<B> {
         let listeners = Listeners::new(
             tf_listener.clone(),
             config.fixed_frame.clone(),
@@ -65,7 +61,7 @@ impl<B: Backend> App<B> {
         App {
             mode: 1,
             show_help: false,
-            keymap: keymap,
+            keymap: config.key_mapping,
             app_modes: vec![send_pose, teleop, image_view],
         }
     }

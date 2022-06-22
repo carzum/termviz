@@ -21,12 +21,13 @@ use termion::event::Key;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Terminal initialization
+
     let conf = config::get_config().unwrap();
     println!("Connecting to ros...");
     rosrust::init("termviz");
     println!("Retrieving map...");
 
-    let static_frame = conf.fixed_frame;
+    let static_frame = conf.fixed_frame.clone();
     let mut key_to_input: HashMap<Key, String> = conf
         .key_mapping
         .iter()
@@ -64,10 +65,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
     let events = Events::with_config(config);
 
-    let default_app_config = Arc::new(Mutex::new(app::App::new(
-        listener.clone(),
-        conf.key_mapping,
-    )));
+    let default_app_config = Arc::new(Mutex::new(app::App::new(listener.clone(), conf)));
 
     let mut running_app = default_app_config.lock().unwrap();
     let mut terminal = running_app.init_terminal().unwrap();

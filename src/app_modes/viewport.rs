@@ -254,6 +254,25 @@ impl UseViewport for Viewport {
         for line in Viewport::get_frame_lines(&base_link_pose, self.axis_length) {
             ctx.draw(&line);
         }
+
+        for pose_stamped in &self.listeners.pose_stamped {
+            for line in pose_stamped.get_lines() {
+                ctx.draw(&line);
+            }
+        }
+
+        for path in &self.listeners.paths {
+            for line in path.get_lines() {
+                ctx.draw(&line)
+            }
+        }
+
+        for pose_array in &self.listeners.pose_array {
+            for line in pose_array.get_lines() {
+                ctx.draw(&line);
+            }
+        }
+
         ctx.layer();
     }
 }

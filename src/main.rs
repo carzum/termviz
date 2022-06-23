@@ -8,6 +8,7 @@ mod laser;
 mod listeners;
 mod map;
 mod marker;
+mod pose;
 mod transformation;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

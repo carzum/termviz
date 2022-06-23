@@ -12,11 +12,23 @@ fn default_map_threshold() -> i8 {
     1
 }
 
+fn default_pose_length() -> f64 {
+    0.2
+}
+
 fn color_white() -> Color {
     Color {
         r: 255,
         g: 255,
         b: 255,
+    }
+}
+
+fn color_red() -> Color {
+    Color {
+        r: 255,
+        g: 0,
+        b: 0,
     }
 }
 
@@ -30,6 +42,16 @@ pub struct Color {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListenerConfig {
     pub topic: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PoseListenerConfig {
+    pub topic: String,
+    pub style: String,
+    #[serde(default = "color_red")]
+    pub color: Color,
+    #[serde(default = "default_pose_length")]
+    pub length: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -80,6 +102,9 @@ pub struct TermvizConfig {
     pub marker_topics: Vec<ListenerConfig>,
     pub image_topics: Vec<ImageListenerConfig>,
     pub marker_array_topics: Vec<ListenerConfig>,
+    pub pose_stamped_topics: Vec<PoseListenerConfig>,
+    pub pose_array_topics: Vec<PoseListenerConfig>,
+    pub path_topics: Vec<PoseListenerConfig>,
     pub send_pose_topic: String,
     pub target_framerate: i64,
     pub axis_length: f64,
@@ -116,6 +141,24 @@ impl Default for TermvizConfig {
             image_topics: vec![ImageListenerConfig {
                 topic: "image_rect".to_string(),
                 rotation: 0,
+            }],
+            pose_stamped_topics: vec![PoseListenerConfig {
+                topic: "pose_stamped".to_string(),
+                style: "axis".to_string(),
+                color: Color { r: 255, g: 0, b: 0 },
+                length: 0.2,
+            }],
+            pose_array_topics: vec![PoseListenerConfig {
+                topic: "pose_array".to_string(),
+                style: "arrow".to_string(),
+                color: Color { r: 255, g: 0, b: 0 },
+                length: 0.2,
+            }],
+            path_topics: vec![PoseListenerConfig {
+                topic: "path".to_string(),
+                style: "line".to_string(),
+                color: Color { r: 0, g: 255, b: 0 },
+                length: 0.2,
             }],
             send_pose_topic: "initialpose".to_string(),
             target_framerate: 30,

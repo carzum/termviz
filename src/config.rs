@@ -8,6 +8,18 @@ fn default_int() -> i64 {
     0
 }
 
+fn default_map_threshold() -> i8 {
+    1
+}
+
+fn color_white() -> Color {
+    Color {
+        r: 255,
+        g: 255,
+        b: 255,
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Color {
     pub r: u8,
@@ -36,7 +48,9 @@ pub struct ListenerConfigColor {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MapListenerConfig {
     pub topic: String,
+    #[serde(default = "color_white")]
     pub color: Color,
+    #[serde(default = "default_map_threshold")]
     pub threshold: i8,
 }
 

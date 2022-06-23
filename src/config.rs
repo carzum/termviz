@@ -12,11 +12,23 @@ fn default_map_threshold() -> i8 {
     1
 }
 
+fn default_pose_length() -> f64 {
+    0.2
+}
+
 fn color_white() -> Color {
     Color {
         r: 255,
         g: 255,
         b: 255,
+    }
+}
+
+fn color_red() -> Color {
+    Color {
+        r: 255,
+        g: 0,
+        b: 0,
     }
 }
 
@@ -36,7 +48,9 @@ pub struct ListenerConfig {
 pub struct PoseListenerConfig {
     pub topic: String,
     pub style: String,
+    #[serde(default = "color_red")]
     pub color: Color,
+    #[serde(default = "default_pose_length")]
     pub length: f64,
 }
 
@@ -132,19 +146,19 @@ impl Default for TermvizConfig {
                 topic: "pose_stamped".to_string(),
                 style: "axis".to_string(),
                 color: Color { r: 255, g: 0, b: 0 },
-                length: 0.5,
+                length: 0.2,
             }],
             pose_array_topics: vec![PoseListenerConfig {
                 topic: "pose_array".to_string(),
                 style: "arrow".to_string(),
                 color: Color { r: 255, g: 0, b: 0 },
-                length: 0.5,
+                length: 0.2,
             }],
             path_topics: vec![PoseListenerConfig {
                 topic: "path".to_string(),
                 style: "line".to_string(),
                 color: Color { r: 0, g: 255, b: 0 },
-                length: 0.5,
+                length: 0.2,
             }],
             send_pose_topic: "initialpose".to_string(),
             target_framerate: 30,

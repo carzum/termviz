@@ -1,4 +1,4 @@
-use crate::config::{ListenerConfig, ListenerConfigColor};
+use crate::config::{ListenerConfig, ListenerConfigColor, MapListenerConfig};
 use crate::laser;
 use crate::map;
 use crate::marker;
@@ -18,7 +18,7 @@ impl Listeners {
         laser_topics: Vec<ListenerConfigColor>,
         marker_topics: Vec<ListenerConfig>,
         marker_array_topics: Vec<ListenerConfig>,
-        map_topics: Vec<ListenerConfigColor>,
+        map_topics: Vec<MapListenerConfig>,
     ) -> Listeners {
         let mut lasers: Vec<laser::LaserListener> = Vec::new();
         for laser_config in laser_topics {

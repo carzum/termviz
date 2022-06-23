@@ -24,7 +24,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let conf = config::get_config().unwrap();
     println!("Connecting to ros...");
     rosrust::init("termviz");
-    println!("Retrieving map...");
 
     let static_frame = conf.fixed_frame;
     let mut key_to_input: HashMap<Key, String> = conf
@@ -43,6 +42,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
     }
     // Initialize listener and wait for it to come up
+    println!("Waiting for tf...");
     let listener = Arc::new(rustros_tf::TfListener::new());
     while rosrust::is_ok() {
         let res = listener.lookup_transform(

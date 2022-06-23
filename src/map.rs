@@ -1,4 +1,4 @@
-use crate::config::ListenerConfigColor;
+use crate::config::MapListenerConfig;
 use crate::transformation;
 use std::sync::{Arc, RwLock};
 
@@ -8,7 +8,7 @@ use rosrust;
 use rustros_tf;
 
 pub struct MapListener {
-    pub config: ListenerConfigColor,
+    pub config: MapListenerConfig,
     pub points: Arc<RwLock<Vec<(f64, f64)>>>,
     _tf_listener: Arc<rustros_tf::TfListener>,
     _static_frame: String,
@@ -17,7 +17,7 @@ pub struct MapListener {
 
 impl MapListener {
     pub fn new(
-        config: ListenerConfigColor,
+        config: MapListenerConfig,
         tf_listener: Arc<rustros_tf::TfListener>,
         static_frame: String,
     ) -> MapListener {
@@ -25,7 +25,7 @@ impl MapListener {
         let cb_occ_points = occ_points.clone();
         let str_ = static_frame.clone();
         let local_listener = tf_listener.clone();
-
+        let threshold = config.threshold.clone();
         let _map_sub = rosrust::subscribe(
             &config.topic,
             1,
@@ -57,7 +57,7 @@ impl MapListener {
                 for (i, pt) in map.data.iter().enumerate() {
                     let line = i / map.info.width as usize;
                     let column = i - line * map.info.width as usize;
-                    if pt != &0 {
+                    if pt >= &threshold {
                         let trans_point = isometry.transform_point(&Point3::new(
                             (column as f64) * map.info.resolution as f64,
                             line as f64 * map.info.resolution as f64,
@@ -67,9 +67,7 @@ impl MapListener {
                             &res.as_ref().unwrap().transform,
                             (trans_point[0], trans_point[1]),
                         );
-                        if pt > &0 {
-                            points.push(global_point);
-                        }
+                        points.push(global_point);
                     }
                 }
                 let mut cb_occ_points = cb_occ_points.write().unwrap();

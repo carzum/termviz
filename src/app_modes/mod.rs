@@ -45,7 +45,7 @@ pub trait AppMode {
     fn reset(&mut self);
 
     /// Handles the received input.
-    /// 
+    ///
     /// # Arguments
     /// - `input` : the input to be handled, in the form of app_modes::input
     fn handle_input(&mut self, input: &String);
@@ -64,7 +64,7 @@ pub trait AppMode {
 /// Represents something that can be drawn on the screen
 pub trait Drawable<B: Backend> {
     /// Draws on the specified frame.
-    /// 
+    ///
     /// # Arguments
     /// - `f`: the frame on which to draw
     fn draw(&self, f: &mut Frame<B>);

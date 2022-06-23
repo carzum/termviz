@@ -8,6 +8,18 @@ fn default_int() -> i64 {
     0
 }
 
+fn default_map_threshold() -> i8 {
+    1
+}
+
+fn color_white() -> Color {
+    Color {
+        r: 255,
+        g: 255,
+        b: 255,
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Color {
     pub r: u8,
@@ -34,6 +46,15 @@ pub struct ListenerConfigColor {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct MapListenerConfig {
+    pub topic: String,
+    #[serde(default = "color_white")]
+    pub color: Color,
+    #[serde(default = "default_map_threshold")]
+    pub threshold: i8,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TeleopConfig {
     pub default_increment: f64,
     pub increment_step: f64,
@@ -54,7 +75,7 @@ impl Default for TeleopConfig {
 pub struct TermvizConfig {
     pub fixed_frame: String,
     pub robot_frame: String,
-    pub map_topics: Vec<ListenerConfigColor>,
+    pub map_topics: Vec<MapListenerConfig>,
     pub laser_topics: Vec<ListenerConfigColor>,
     pub marker_topics: Vec<ListenerConfig>,
     pub image_topics: Vec<ImageListenerConfig>,
@@ -73,13 +94,14 @@ impl Default for TermvizConfig {
         TermvizConfig {
             fixed_frame: "map".to_string(),
             robot_frame: "base_link".to_string(),
-            map_topics: vec![ListenerConfigColor {
+            map_topics: vec![MapListenerConfig {
                 topic: "map".to_string(),
                 color: Color {
                     r: 255,
                     b: 255,
                     g: 255,
                 },
+                threshold: 1,
             }],
             laser_topics: vec![ListenerConfigColor {
                 topic: "scan".to_string(),

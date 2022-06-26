@@ -2,6 +2,8 @@ use crate::app_modes::input;
 use confy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io;
+use std::io::Write;
 use std::path::Path;
 
 fn default_int() -> i64 {
@@ -25,11 +27,7 @@ fn color_white() -> Color {
 }
 
 fn color_red() -> Color {
-    Color {
-        r: 255,
-        g: 0,
-        b: 0,
-    }
+    Color { r: 255, g: 0, b: 0 }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -187,22 +185,42 @@ impl Default for TermvizConfig {
     }
 }
 
-pub fn get_config() -> Result<TermvizConfig, confy::ConfyError> {
+pub fn ask_store() -> bool {
+    let mut x = String::with_capacity(5);
+    print!("Store default config? (y|N): ");
+    let _ = io::stdout().flush();
+    io::stdin().read_line(&mut x).expect("Error reading input");
+    let x = x.strip_suffix("\n").unwrap();
+    match x.to_lowercase().as_str() {
+        "y" | "yes" => true,
+        _ => false,
+    }
+}
+
+pub fn get_config(args: Vec<String>) -> Result<TermvizConfig, confy::ConfyError> {
     let mut cfg = TermvizConfig::default();
     let user_path = confy::get_configuration_file_path("termviz", "termviz")?;
-    if Path::new(&user_path).exists() {
+    if args.len() > 1 {
+        // config path provided by command line arg
+        cfg = confy::load_path(&args[1]).unwrap();
+    } else if Path::new(&user_path).exists() {
         // use user config if exists
         cfg = confy::load("termviz", "termviz")?;
     } else {
+        // fallback to system config
         let sys_path = "/etc/termviz/termviz.yml";
         if Path::new(sys_path).exists() {
-            // fallback to system config
             cfg = confy::load_path(sys_path)?;
         } else {
-            let res = confy::store("termviz", "termviz", &cfg);
-            match res {
-                Ok(v) => println!("Stored default config: {:?}", v),
-                Err(e) => println!("Error storing default config: {:?}", e),
+            // no config found, generate default
+            println!("No config found, using default");
+            let store = ask_store();
+            if store {
+                let res = confy::store("termviz", "termviz", &cfg);
+                match res {
+                    Ok(_) => println!("Stored default config at {:?}", user_path),
+                    Err(e) => println!("Error storing default config: {:?}", e),
+                }
             }
         }
     };

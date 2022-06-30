@@ -17,13 +17,15 @@ use std::time::Duration;
 use event::{Config, Event, Events};
 use rosrust;
 use rustros_tf;
+use std::env;
 use std::error::Error;
 use termion::event::Key;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Terminal initialization
 
-    let conf = config::get_config().unwrap();
+    let args: Vec<String> = env::args().collect();
+    let conf = config::get_config(args).unwrap();
     println!("Connecting to ros...");
     rosrust::init("termviz");
 

@@ -217,6 +217,14 @@ impl UseViewport for Viewport {
         }
 
         ctx.layer();
+        for pointcloud in &self.listeners.pointclouds {
+            ctx.draw(&Points {
+                coords: &pointcloud.points.read().unwrap(),
+                color: Color::Rgb(255, 255, 0),
+            });
+        }
+
+        ctx.layer();
         for line in self.listeners.markers.get_lines() {
             ctx.draw(&line);
         }

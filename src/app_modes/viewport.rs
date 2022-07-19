@@ -218,10 +218,14 @@ impl UseViewport for Viewport {
 
         ctx.layer();
         for pointcloud in &self.listeners.pointclouds {
-            ctx.draw(&Points {
-                coords: &pointcloud.points.read().unwrap(),
-                color: Color::Rgb(255, 255, 0),
-            });
+            let points = &pointcloud.points.read().unwrap();
+            let colors = &pointcloud.colors.read().unwrap();
+            for i in 0..points.len() {
+                ctx.draw(&Points {
+                    coords: &[points[i]],
+                    color: colors[i]
+                })
+            }
         }
 
         ctx.layer();

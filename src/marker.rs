@@ -310,6 +310,14 @@ fn parse_cube_list_msg(
     lines
 }
 
+fn parse_points_msg(
+  msg: &rosrust_msg::visualization_msgs::Marker,
+  color: &tui::style::Color,
+  iso: &Isometry3<f64>,
+) -> Vec<Line> {
+  return parse_cube_list_msg(msg,color,iso);
+}
+
 fn parse_line_strip_msg(
     msg: &rosrust_msg::visualization_msgs::Marker,
     color: &tui::style::Color,
@@ -369,6 +377,9 @@ fn parse_marker_msg(
         rosrust_msg::visualization_msgs::Marker::CUBE => parse_cube_msg(msg, &color, &iso),
         rosrust_msg::visualization_msgs::Marker::CUBE_LIST => {
             parse_cube_list_msg(msg, &color, &iso)
+        }
+        rosrust_msg::visualization_msgs::Marker::POINTS => {
+          parse_points_msg(msg, &color, &iso)
         }
         rosrust_msg::visualization_msgs::Marker::LINE_STRIP => {
             parse_line_strip_msg(msg, &color, &iso)

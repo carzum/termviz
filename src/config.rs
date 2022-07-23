@@ -25,11 +25,7 @@ fn color_white() -> Color {
 }
 
 fn color_red() -> Color {
-    Color {
-        r: 255,
-        g: 0,
-        b: 0,
-    }
+    Color { r: 255, g: 0, b: 0 }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,7 +39,6 @@ pub struct Color {
 pub struct ListenerConfig {
     pub topic: String,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PointCloud2ListenerConfig {

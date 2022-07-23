@@ -1,9 +1,12 @@
-use crate::config::{ListenerConfig, ListenerConfigColor, MapListenerConfig, PoseListenerConfig, PointCloud2ListenerConfig};
+use crate::config::{
+    ListenerConfig, ListenerConfigColor, MapListenerConfig, PointCloud2ListenerConfig,
+    PoseListenerConfig,
+};
 use crate::laser;
 use crate::map;
 use crate::marker;
-use crate::pose;
 use crate::pointcloud;
+use crate::pose;
 
 use std::sync::Arc;
 

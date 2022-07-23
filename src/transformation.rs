@@ -56,8 +56,7 @@ pub fn iso2d_to_ros(tf: &Isometry2<f64>) -> rosrust_msg::geometry_msgs::Transfor
     }
 }
 
-pub fn ros_transform_to_isometry(tf: &rosrust_msg::geometry_msgs::Transform) -> Isometry3<f64>
-{
+pub fn ros_transform_to_isometry(tf: &rosrust_msg::geometry_msgs::Transform) -> Isometry3<f64> {
     let tra = Translation3::new(tf.translation.x, tf.translation.y, tf.translation.z);
     let rot = UnitQuaternion::new_normalize(Quaternion::new(
         tf.rotation.w,
@@ -65,5 +64,5 @@ pub fn ros_transform_to_isometry(tf: &rosrust_msg::geometry_msgs::Transform) -> 
         tf.rotation.y,
         tf.rotation.z,
     ));
- Isometry3::from_parts(tra, rot)
+    Isometry3::from_parts(tra, rot)
 }

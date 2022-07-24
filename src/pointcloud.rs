@@ -12,11 +12,25 @@ use rustros_tf;
 
 pub struct PointCloud2Listener {
     pub config: PointCloud2ListenerConfig,
-    pub points: Arc<RwLock<Vec<Point3<f64>>>>,
-    pub colors: Arc<RwLock<Vec<Color>>>,
+    pub points: Arc<RwLock<Vec<ColoredPoint>>>,
     _tf_listener: Arc<rustros_tf::TfListener>,
     _static_frame: String,
     _subscriber: rosrust::Subscriber,
+}
+
+#[derive(Clone)]
+pub struct ColoredPoint {
+    pub point: Point3<f64>,
+    pub color: Color,
+}
+
+impl ColoredPoint {
+    pub fn new(point: Option<Point3<f64>>, color: Option<Color>) -> ColoredPoint {
+        ColoredPoint {
+            point: point.unwrap_or(Point3::new(0.0, 0.0, 0.0)),
+            color: color.unwrap_or(Color::Red),
+        }
+    }
 }
 
 pub fn get_channel_offset(name: &str, fields: &Vec<rosrust_msg::sensor_msgs::PointField>) -> u32 {
@@ -49,29 +63,30 @@ pub fn read_xyz(msg: &rosrust_msg::sensor_msgs::PointCloud2) -> Vec<Point3<f64>>
     points
 }
 
-pub fn read_rgb(msg: &rosrust_msg::sensor_msgs::PointCloud2) -> Vec<Color> {
+pub fn colorize_from_rgb(
+    mut points: Vec<ColoredPoint>,
+    msg: &rosrust_msg::sensor_msgs::PointCloud2,
+) -> Vec<ColoredPoint> {
     let n_pts = msg.width * msg.height;
-    let mut colors: Vec<Color> = Vec::with_capacity(n_pts as usize);
     let rgb_offset = get_channel_offset("rgb", &msg.fields);
     for i in 0..n_pts {
         let idx = i * msg.point_step + rgb_offset;
-        colors.push(Color::Rgb(
+        points[i as usize].color = Color::Rgb(
             msg.data[(idx + 2) as usize],
             msg.data[(idx + 1) as usize],
             msg.data[idx as usize],
-        ));
+        );
     }
-    colors
+    points
 }
 
-pub fn colorize_points(points: &Vec<Point3<f64>>, min_z: f64, max_z: f64) -> Vec<Color> {
-    let mut colors: Vec<Color> = Vec::with_capacity(points.len());
+pub fn colorize_points(mut points: Vec<ColoredPoint>, min_z: f64, max_z: f64) -> Vec<ColoredPoint> {
     let grad = colorgrad::turbo();
-    for pt in points {
-        let c = grad.at((pt.z - min_z) / (max_z - min_z)).to_rgba8();
-        colors.push(Color::Rgb(c[0], c[1], c[2]));
+    for pt in points.iter_mut() {
+        let c = grad.at((pt.point.z - min_z) / (max_z - min_z)).to_rgba8();
+        pt.color = Color::Rgb(c[0], c[1], c[2]);
     }
-    colors
+    points
 }
 
 impl PointCloud2Listener {
@@ -80,17 +95,16 @@ impl PointCloud2Listener {
         tf_listener: Arc<rustros_tf::TfListener>,
         static_frame: String,
     ) -> PointCloud2Listener {
-        let occ_points = Arc::new(RwLock::new(Vec::<Point3<f64>>::new()));
+        let occ_points = Arc::new(RwLock::new(Vec::<ColoredPoint>::new()));
         let cb_occ_points = occ_points.clone();
-        let colors = Arc::new(RwLock::new(Vec::<Color>::new()));
-        let cb_colors = colors.clone();
         let str_ = static_frame.clone();
         let local_listener = tf_listener.clone();
+        let use_rgb = config.use_rgb.clone();
         let _sub = rosrust::subscribe(
             &config.topic,
             1,
             move |cloud: rosrust_msg::sensor_msgs::PointCloud2| {
-                let mut points: Vec<Point3<f64>> = Vec::new();
+                let mut points: Vec<ColoredPoint> = Vec::new();
                 let res = local_listener.clone().lookup_transform(
                     &str_,
                     &cloud.header.frame_id,
@@ -112,14 +126,17 @@ impl PointCloud2Listener {
                     if trans_pt.z < min_z {
                         min_z = trans_pt.z;
                     }
-                    points.push(trans_pt);
+                    points.push(ColoredPoint::new(Some(trans_pt), None));
                 }
-                let mut cb_colors = cb_colors.write().unwrap();
-                if false {
-                    *cb_colors = read_rgb(&cloud);
+                if use_rgb {
+                    points = colorize_from_rgb(points, &cloud);
                 } else {
-                    *cb_colors = colorize_points(&points, min_z, max_z);
+                    points = colorize_points(points, min_z, max_z);
                 }
+                points = points
+                    .into_iter()
+                    .filter(|n| !n.point.z.is_nan())
+                    .collect::<Vec<_>>();
                 let mut cb_occ_points = cb_occ_points.write().unwrap();
                 *cb_occ_points = points;
             },
@@ -129,7 +146,6 @@ impl PointCloud2Listener {
         PointCloud2Listener {
             config,
             points: occ_points,
-            colors,
             _tf_listener: tf_listener,
             _static_frame: static_frame.to_string(),
             _subscriber: _sub,

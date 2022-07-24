@@ -43,6 +43,8 @@ pub struct ListenerConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PointCloud2ListenerConfig {
     pub topic: String,
+    #[serde(default = "bool::default")]
+    pub use_rgb: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -164,6 +166,7 @@ impl Default for TermvizConfig {
             }],
             pointcloud2_topics: vec![PointCloud2ListenerConfig {
                 topic: "pointcloud2".to_string(),
+                use_rgb: false,
             }],
             send_pose_topic: "initialpose".to_string(),
             target_framerate: 30,

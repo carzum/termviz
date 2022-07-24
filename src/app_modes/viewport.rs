@@ -217,6 +217,17 @@ impl UseViewport for Viewport {
         }
 
         ctx.layer();
+        for pointcloud in &self.listeners.pointclouds {
+            let points = &pointcloud.points.read().unwrap().clone();
+            for pt in points {
+                ctx.draw(&Points {
+                    coords: &[(pt.point.x, pt.point.y)],
+                    color: pt.color,
+                })
+            }
+        }
+
+        ctx.layer();
         for line in self.listeners.markers.get_lines() {
             ctx.draw(&line);
         }

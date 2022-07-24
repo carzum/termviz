@@ -43,6 +43,13 @@ pub struct ListenerConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct PointCloud2ListenerConfig {
+    pub topic: String,
+    #[serde(default = "bool::default")]
+    pub use_rgb: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PoseListenerConfig {
     pub topic: String,
     pub style: String,
@@ -100,9 +107,10 @@ pub struct TermvizConfig {
     pub marker_topics: Vec<ListenerConfig>,
     pub image_topics: Vec<ImageListenerConfig>,
     pub marker_array_topics: Vec<ListenerConfig>,
-    pub pose_stamped_topics: Vec<PoseListenerConfig>,
-    pub pose_array_topics: Vec<PoseListenerConfig>,
     pub path_topics: Vec<PoseListenerConfig>,
+    pub pointcloud2_topics: Vec<PointCloud2ListenerConfig>,
+    pub pose_array_topics: Vec<PoseListenerConfig>,
+    pub pose_stamped_topics: Vec<PoseListenerConfig>,
     pub send_pose_topic: String,
     pub target_framerate: i64,
     pub axis_length: f64,
@@ -157,6 +165,10 @@ impl Default for TermvizConfig {
                 style: "line".to_string(),
                 color: Color { r: 0, g: 255, b: 0 },
                 length: 0.2,
+            }],
+            pointcloud2_topics: vec![PointCloud2ListenerConfig {
+                topic: "pointcloud2".to_string(),
+                use_rgb: false,
             }],
             send_pose_topic: "initialpose".to_string(),
             target_framerate: 30,

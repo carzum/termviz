@@ -1,7 +1,11 @@
-use crate::config::{ListenerConfig, ListenerConfigColor, MapListenerConfig, PoseListenerConfig};
+use crate::config::{
+    ListenerConfig, ListenerConfigColor, MapListenerConfig, PointCloud2ListenerConfig,
+    PoseListenerConfig,
+};
 use crate::laser;
 use crate::map;
 use crate::marker;
+use crate::pointcloud;
 use crate::pose;
 
 use std::sync::Arc;
@@ -12,6 +16,7 @@ pub struct Listeners {
     pub maps: Vec<map::MapListener>,
     pub pose_stamped: Vec<pose::PoseStampedListener>,
     pub pose_array: Vec<pose::PoseArrayListener>,
+    pub pointclouds: Vec<pointcloud::PointCloud2Listener>,
     pub paths: Vec<pose::PathListener>,
 }
 
@@ -25,6 +30,7 @@ impl Listeners {
         map_topics: Vec<MapListenerConfig>,
         pose_stamped_topics: Vec<PoseListenerConfig>,
         pose_array_topics: Vec<PoseListenerConfig>,
+        pointcloud2_topics: Vec<PointCloud2ListenerConfig>,
         path_topics: Vec<PoseListenerConfig>,
     ) -> Listeners {
         let mut lasers: Vec<laser::LaserListener> = Vec::new();
@@ -54,6 +60,15 @@ impl Listeners {
             ));
         }
 
+        let mut pointclouds: Vec<pointcloud::PointCloud2Listener> = Vec::new();
+        for pc_config in pointcloud2_topics {
+            pointclouds.push(pointcloud::PointCloud2Listener::new(
+                pc_config,
+                tf_listener.clone(),
+                static_frame.clone(),
+            ));
+        }
+
         let pose_stamped = pose_stamped_topics
             .into_iter()
             .map(|topic| pose::PoseStampedListener::new(topic))
@@ -72,6 +87,7 @@ impl Listeners {
             maps,
             pose_stamped,
             pose_array,
+            pointclouds,
             paths,
         }
     }

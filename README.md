@@ -8,7 +8,7 @@ It can also be useful in case the robot has a firewall or in situations in which
 
 To launch the visualizer, just run the `termviz` executable.
 
-The program looks for a configuration file named `termviz.yaml` in `~/.config/termviz/` first, then in `/etc/termviz/`. If the file is not found, it will prompt to create a default one in `~/.config/termviz/termviz.yaml`. Alternative it is possible to pass a configuration file directly to the executable: `termviz <myconfig>.yaml`.
+The program looks for a configuration file named `termviz.yml` in `~/.config/termviz/` first, then in `/etc/termviz/`. If the file is not found, it prompts the user to create a default one in `~/.config/termviz/termviz.yml`. Alternatively, it is possible to pass a configuration file directly to the executable: `termviz <myconfig>.yml`.
 
 The program requires a running ROS master and an available TF between the robot frame (`base_link` by default) and a static frame (`map` by default).
 
@@ -16,7 +16,7 @@ Once the visualizer starts, every configured topic, as well as the robot footpri
 
 ### Send pose mode
 
-The mode allows to publish a `geometry_msgs::PoseWithCovarianceStamped` message on a topic. The desired pose can be selected by moving the outline of the robot in the map. Confirming the operation (`Enter` by default) sends a PoseStamped message on the topic specified under `send_pose_topic` in the configuration file.
+The mode allows to publish a `geometry_msgs::PoseWithCovarianceStamped` message on a topic. The desired pose can be selected by moving the outline of the robot in the map. Confirming the operation (`Enter` by default) publishes the pose on the topic specified under `send_pose_topic` in the configuration file.
 
 ### Teleoperate mode
 
@@ -25,7 +25,7 @@ Settings can be found under `teleop` in the configuration file.
 
 ### Image mode
 
-This node allows to visualize images received on the topics specified under `image_topics` in the configuration file.
+This mode allows to visualize images received on the topics specified under `image_topics` in the configuration file.
 
 ## Supported message types
 
@@ -52,7 +52,7 @@ map_topics:                     # nav_msgs::OccupancyGrid topics.
       r: 255
       g: 255
       b: 255
-    threshold: 1                # Threshold value to consider a cell occupied (cell containing a lower value are not visualized).
+    threshold: 1                # Threshold value to consider a cell occupied (cells containing a lower value are not visualized).
 laser_topics:                   # sensor_msgs::LaserScan topics.
   - topic: scan                 # Topic name.
     color:                      # Color of the laser data.

@@ -25,5 +25,8 @@ timer = "0.1.6"
 tui = "0.16.0"
 strum = "0.23"
 strum_macros = "0.23"
-confy = "0.5.0"
 
+[dependencies.confy]
+confy = "0.5.0"
+features = ["yaml_conf"]
+default-features = false

@@ -121,7 +121,8 @@ impl AppMode for SendPose {
 
     fn get_description(&self) -> Vec<String> {
         vec![
-            "This mode allows to publish a PoseStamped message on a topic.".to_string(),
+            "This mode allows to publish a PoseWithCovarianceStamped message on a topic."
+                .to_string(),
             "The viewport is centered on the preview outline of where the pose is on the map."
                 .to_string(),
         ]
@@ -131,43 +132,43 @@ impl AppMode for SendPose {
         let mut keymap = vec![
             [
                 input::UP.to_string(),
-                "Shifts the pose estimate positively along the x axis.".to_string(),
+                "Shifts the desired pose positively along the x axis.".to_string(),
             ],
             [
                 input::DOWN.to_string(),
-                "Shifts the pose estimate negatively along the x axis.".to_string(),
+                "Shifts the desired pose negatively along the x axis.".to_string(),
             ],
             [
                 input::RIGHT.to_string(),
-                "Shifts the pose estimate positively along the y axis.".to_string(),
+                "Shifts the desired pose positively along the y axis.".to_string(),
             ],
             [
                 input::LEFT.to_string(),
-                "Shifts the pose estimate negatively along the y axis.".to_string(),
+                "Shifts the desired pose negatively along the y axis.".to_string(),
             ],
             [
                 input::ROTATE_LEFT.to_string(),
-                "Rotates the pose estimate counter-clockwise.".to_string(),
+                "Rotates the desired pose counter-clockwise.".to_string(),
             ],
             [
                 input::ROTATE_RIGHT.to_string(),
-                "Rotates the pose estimate clockwise.".to_string(),
+                "Rotates the desired pose clockwise.".to_string(),
             ],
             [
                 input::CANCEL.to_string(),
-                "Resets the pose estimate.".to_string(),
+                "Resets the desired pose.".to_string(),
             ],
             [
                 input::CONFIRM.to_string(),
-                "Sends the pose estimate.".to_string(),
+                "Sends the desired pose.".to_string(),
             ],
             [
                 input::INCREMENT_STEP.to_string(),
-                "Increases the step size for manipulating the pose estimate.".to_string(),
+                "Increases the step size for manipulating the desired pose.".to_string(),
             ],
             [
                 input::DECREMENT_STEP.to_string(),
-                "Decreases the step size for manipulating the pose estimate.".to_string(),
+                "Decreases the step size for manipulating the desired pose.".to_string(),
             ],
         ];
         keymap.extend(self.viewport.borrow().get_keymap());

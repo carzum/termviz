@@ -72,7 +72,7 @@ impl AppMode for ImageView {
     }
 
     fn get_description(&self) -> Vec<String> {
-        vec!["This mode allows to visualized images received on the given topics.".to_string()]
+        vec!["This mode allows to visualize images received on the given topics.".to_string()]
     }
 
     fn get_keymap(&self) -> Vec<[String; 2]> {

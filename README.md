@@ -1,5 +1,7 @@
 # TermViz - ROS visualization on the terminal
 
+![Animation](images/usage.gif)
+
 TermViz is a visualizer for the Robot Operating System (ROS) framework, that runs completely on the terminal.
 This allows the visualizer to run directly on the robot (e.g., via ssh) without any configuration on an external computer. Additionally, it is lightweight and really fast to start and to quit.
 It can also be useful in case the robot has a firewall or in situations in which no graphics server can be run.

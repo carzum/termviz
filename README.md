@@ -1,18 +1,43 @@
 # TermViz - ROS visualization on the terminal
 
 TermViz is a visualizer for the Robot Operating System (ROS) framework, that runs completely on the terminal.
-This allows the visualizer to run directly on the robot (e.g., via ssh) without any configuration on an external computer.
+This allows the visualizer to run directly on the robot (e.g., via ssh) without any configuration on an external computer. Additionally, it is lightweight and really fast to start and to quit.
 It can also be useful in case the robot has a firewall or in situations in which no graphics server can be run.
+## Supported message types
+
+- geometry_msgs::PoseArray
+- geometry_msgs::PoseStamped
+- nav_msgs::OccupancyGrid
+- nav_msgs::Path
+- sensor_msgs::Image
+- sensor_msgs::LaserScan
+- sensor_msgs::PointCloud2
+- visualization_msgs::Marker
+- visualization_msgs::MarkerArray
+
+## Installation
+
+Get the source code:
+```bash
+git clone git@github.com:carzum/termviz.git
+```
+
+Build the project via cargo:
+```bash
+cargo build --release
+```
+
+After the build succeeded, the executable will be located in `target/release/` and can be used directly. No external libraries are needed, so it can be copied directly on a robot or another computer.
 
 ## How to use
 
 To launch the visualizer, just run the `termviz` executable.
 
-The program looks for a configuration file named `termviz.yml` in `~/.config/termviz/` first, then in `/etc/termviz/`. If the file is not found, it prompts the user to create a default one in `~/.config/termviz/termviz.yml`. Alternatively, it is possible to pass a configuration file directly to the executable: `termviz <myconfig>.yml`.
+The program looks for a configuration file named `termviz.yml` in `~/.config/termviz/` first, then in `/etc/termviz/`. If the file is not found, it prompts the user to create a default one. Alternatively, it is possible to pass a configuration file directly to the executable: `termviz <myconfig>.yml`.
 
-The program requires a running ROS master and an available TF between the robot frame (`base_link` by default) and a static frame (`map` by default).
+The program requires a running ROS master and an available TF between the robot frame (`base_link` by default) and a static frame (`map` by default). If the ROS parameter `/footprint`, it will be used to show the footprint of the robot.
 
-Once the visualizer starts, every configured topic, as well as the robot footprint (obtained from the ROS parameter `/footprint`) and frame, should be visible in the viewport. Pressing `h` shows the help screen, which will describe the current mode and the keymap relative to the current mode. The mode can be switched using the number keys and the help screen will update accordingly.
+Pressing `h` shows the help screen, which will describe the current mode and the keymap relative to the current mode. The mode can be switched using the number keys and the help screen will update accordingly.
 
 ### Send pose mode
 
@@ -27,17 +52,6 @@ Settings can be found under `teleop` in the configuration file.
 
 This mode allows to visualize images received on the topics specified under `image_topics` in the configuration file.
 
-## Supported message types
-
-- geometry_msgs::PoseArray
-- geometry_msgs::PoseStamped
-- nav_msgs::OccupancyGrid
-- nav_msgs::Path
-- sensor_msgs::Image
-- sensor_msgs::LaserScan
-- sensor_msgs::PointCloud2
-- visualization_msgs::Marker
-- visualization_msgs::MarkerArray
 
 ## Default config
 
@@ -45,7 +59,7 @@ Here is the commented default config file:
 ```yaml
 ---
 fixed_frame: map                # Fixed frame.
-robot_frame: base_link          # Fobot frame.
+robot_frame: base_link          # Robot frame.
 map_topics:                     # nav_msgs::OccupancyGrid topics.
   - topic: map                  # Topic name.
     color:                      # Color of the occupied cells.
@@ -94,7 +108,7 @@ pose_stamped_topics:            # geometry_msgs::PoseStamped topics.
       b: 0
     length: 0.2                 # Length of the axes.
 send_pose_topic: initialpose    # Topic on which to publish poses in Send Pose mode.
-target_framerate: 30            # Refresh rate of the visualization
+target_framerate: 30            # Refresh rate of the visualization. Lower this if the ssh connection is slow.
 axis_length: 0.5                # Length of the axes of the robot frame
 visible_area:                   # Default boundaries of the visible areas. Determines the initial level of zoom.
   - -5.0

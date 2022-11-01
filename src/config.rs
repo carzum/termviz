@@ -209,12 +209,12 @@ pub fn ask_store() -> bool {
     }
 }
 
-pub fn get_config(args: Vec<String>) -> Result<TermvizConfig, confy::ConfyError> {
+pub fn get_config(config_path: Option<&String>) -> Result<TermvizConfig, confy::ConfyError> {
     let mut cfg = TermvizConfig::default();
     let user_path = confy::get_configuration_file_path("termviz", "termviz")?;
-    if args.len() > 1 {
+    if config_path.is_some() {
         // config path provided by command line arg
-        cfg = confy::load_path(&args[1]).unwrap();
+        cfg = confy::load_path(config_path.unwrap()).unwrap();
     } else if Path::new(&user_path).exists() {
         // use user config if exists
         cfg = confy::load("termviz", "termviz")?;

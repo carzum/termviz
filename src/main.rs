@@ -15,18 +15,25 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use clap::{Arg, Command};
 use event::{Config, Event, Events};
 use rosrust;
 use rustros_tf;
-use std::env;
 use std::error::Error;
 use termion::event::Key;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Terminal initialization
 
-    let args: Vec<String> = env::args().collect();
-    let conf = config::get_config(args).unwrap();
+    let matches = Command::new("termviz")
+        .about("ROS visualization on the terminal")
+        .arg(
+            Arg::new("config").long_help("Optional YAML file with a custom termviz configuration."),
+        )
+        .after_help("More documentation can be found at: https://github.com/carzum/termviz")
+        .get_matches();
+
+    let conf = config::get_config(matches.get_one("config")).unwrap();
     println!("Connecting to ros...");
     rosrust::init("termviz");
 

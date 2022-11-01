@@ -11,6 +11,7 @@ exclude = ["assets/*", ".github"]
 approx = "0.5.1"
 byteorder = "*"
 chrono = "0.2.25"
+clap = "*"
 image = "*"
 colorgrad = "*"
 nalgebra = ">=0.29.0"

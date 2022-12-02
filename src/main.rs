@@ -33,11 +33,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .after_help("More documentation can be found at: https://github.com/carzum/termviz")
         .get_matches();
 
-    let conf = config::get_config(matches.get_one("config")).unwrap();
+    let conf = config::get_config(matches.get_one("config"))?;
+
     println!("Connecting to ros...");
     rosrust::init("termviz");
 
-    let static_frame = conf.fixed_frame.clone();
     let mut key_to_input: HashMap<Key, String> = conf
         .key_mapping
         .iter()
@@ -53,18 +53,22 @@ fn main() -> Result<(), Box<dyn Error>> {
             i.to_string(),
         );
     }
+
     // Initialize listener and wait for it to come up
-    println!("Waiting for tf...");
+    println!(
+        "Waiting for tf from {:?} to {:?} to become available...",
+        conf.fixed_frame, conf.robot_frame
+    );
     let listener = Arc::new(rustros_tf::TfListener::new());
     while rosrust::is_ok() {
-        let res = listener.lookup_transform(
-            &conf.robot_frame,
-            &static_frame.clone(),
-            rosrust::Time::new(),
-        );
+        let res =
+            listener.lookup_transform(&conf.fixed_frame, &conf.robot_frame, rosrust::Time::new());
         match res {
             Ok(_res) => break,
-            Err(_e) => continue,
+            Err(_e) => {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                continue;
+            }
         };
     }
 

@@ -4,6 +4,7 @@ pub mod image_view;
 pub mod send_pose;
 pub mod teleoperate;
 pub mod viewport;
+pub mod topic_managment;
 
 use tui::backend::Backend;
 use tui::Frame;

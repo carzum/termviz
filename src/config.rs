@@ -30,26 +30,26 @@ fn color_red() -> Color {
     Color { r: 255, g: 0, b: 0 }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Color {
     pub r: u8,
     pub b: u8,
     pub g: u8,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ListenerConfig {
     pub topic: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PointCloud2ListenerConfig {
     pub topic: String,
     #[serde(default = "bool::default")]
     pub use_rgb: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PoseListenerConfig {
     pub topic: String,
     pub style: String,
@@ -59,20 +59,20 @@ pub struct PoseListenerConfig {
     pub length: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImageListenerConfig {
     pub topic: String,
     #[serde(default = "default_int")]
     pub rotation: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ListenerConfigColor {
     pub topic: String,
     pub color: Color,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MapListenerConfig {
     pub topic: String,
     #[serde(default = "color_white")]
@@ -81,7 +81,7 @@ pub struct MapListenerConfig {
     pub threshold: i8,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TeleopConfig {
     pub default_increment: f64,
     pub increment_step: f64,
@@ -98,7 +98,7 @@ impl Default for TeleopConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TermvizConfig {
     pub fixed_frame: String,
     pub robot_frame: String,

@@ -4,6 +4,10 @@ use image::{imageops, DynamicImage, ImageBuffer, RgbaImage};
 use rosrust;
 use rosrust_msg;
 use std::sync::{Arc, RwLock};
+use tui::buffer::Buffer;
+use tui::layout::Rect;
+use tui::widgets::Widget;
+use viuer::{print, Config};
 
 // remap a value from range min_val - max_val to 0 - 255
 fn remap_u8(val: f64, min_val: f64, max_val: f64) -> u8 {
@@ -97,6 +101,7 @@ impl ImageListener {
             1,
             move |img_msg: rosrust_msg::sensor_msgs::Image| {
                 let mut img = read_img_msg(img_msg).to_rgba8();
+                // img = imageops::resize(&img, 320, 240, imageops::FilterType::Nearest);
                 let rot = cb_rotation.read().unwrap();
                 match *rot {
                     90 => img = imageops::rotate90(&img),
@@ -135,5 +140,19 @@ impl ImageListener {
         }
         let mut rotation = self._rotation.write().unwrap();
         *rotation = rot;
+    }
+}
+
+impl Widget for &ImageListener {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let conf = Config {
+            x: area.x,
+            y: area.y as i16,
+            width: Some((area.width) as u32),
+            height: Some((area.height) as u32),
+            ..Default::default()
+        };
+        let img = image::DynamicImage::ImageRgba8(self.img.read().unwrap().clone());
+        print(&img, &conf).expect("image printing failed'");
     }
 }

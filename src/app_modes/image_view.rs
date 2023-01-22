@@ -10,7 +10,7 @@ use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Paragraph, Wrap};
 use tui::Frame;
-use tui_image::{ColorMode, Image};
+
 pub struct ImageView {
     images: Vec<ImageListener>,
     active_sub: usize,
@@ -24,7 +24,7 @@ impl ImageView {
             images.push(image::ImageListener::new(image_config));
         }
         ImageView {
-            images: images,
+            images,
             active_sub: 0,
         }
     }
@@ -130,9 +130,7 @@ impl<B: Backend> Drawable<B> for ImageView {
                     .alignment(Alignment::Left)
                     .wrap(Wrap { trim: false });
                     f.render_widget(header, chunks[0]);
-                    let image = image_sub.img.read().unwrap();
-                    let widget = Image::with_img(image.clone()).color_mode(ColorMode::Rgb);
-                    f.render_widget(widget, chunks[1]);
+                    f.render_widget(image_sub.clone(), chunks[1]);
                     break;
                 }
             }

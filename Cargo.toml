@@ -28,6 +28,7 @@ strum_macros = "0.23"
 timer = "0.1.6"
 tokio = { version = "1.16", features = ["full"] }
 tui = "0.18.0"
+viuer = "*"
 tui-image = { git = "https://github.com/arraypad/tui-image" }
 
 [dependencies.confy]

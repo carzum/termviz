@@ -2,19 +2,19 @@ use crate::app_modes;
 use crate::config::TermvizConfig;
 use crate::footprint::get_footprint;
 use crate::listeners::Listeners;
+use crossterm::{
+    event::EnableMouseCapture,
+    execute,
+    terminal::{enable_raw_mode, size, EnterAlternateScreen},
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
 use std::rc::Rc;
 use std::sync::Arc;
-use termion::input::MouseTerminal;
-use termion::raw::IntoRawMode;
-use termion::raw::RawTerminal;
-use termion::screen::AlternateScreen;
-use termion::terminal_size;
 use tui::backend::Backend;
-use tui::backend::TermionBackend;
+use tui::backend::CrosstermBackend;
 use tui::layout::{Alignment, Constraint, Direction, Layout};
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
@@ -51,7 +51,7 @@ impl<B: Backend> App<B> {
             config.axis_length,
             config.zoom_factor,
             listeners,
-            terminal_size().unwrap(),
+            size().unwrap(),
         )));
         let send_pose = Box::new(app_modes::send_pose::SendPose::new(
             &config.send_pose_topic,
@@ -70,14 +70,11 @@ impl<B: Backend> App<B> {
         }
     }
 
-    pub fn init_terminal(
-        &mut self,
-    ) -> io::Result<Terminal<TermionBackend<AlternateScreen<MouseTerminal<RawTerminal<io::Stdout>>>>>>
-    {
-        let stdout = io::stdout().into_raw_mode()?;
-        let stdout = MouseTerminal::from(stdout);
-        let stdout = AlternateScreen::from(stdout);
-        let backend = TermionBackend::new(stdout);
+    pub fn init_terminal(&mut self) -> io::Result<Terminal<CrosstermBackend<io::Stdout>>> {
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
         Ok(terminal)
     }

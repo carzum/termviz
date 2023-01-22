@@ -12,20 +12,23 @@ approx = "0.5.1"
 byteorder = "*"
 chrono = "0.2.25"
 clap = "*"
-image = "*"
 colorgrad = "*"
+crossterm = { version = '0.23', features = ["event-stream"] }
+futures = "0.3"
+futures-timer = "3.0"
+image = "*"
 nalgebra = ">=0.29.0"
 rosrust = "0.9"
 rosrust_msg = "0.1"
 rustros_tf = { git = "https://github.com/maximaerz/rustros_tf" }
-tui-image = { git = "https://github.com/carzum/tui-image" }
 serde = { version = "*", features = ["derive"] }
 serde_derive = "*"
-termion = "1.5"
-timer = "0.1.6"
-tui = "0.16.0"
 strum = "0.23"
 strum_macros = "0.23"
+timer = "0.1.6"
+tokio = { version = "1.16", features = ["full"] }
+tui = "0.18.0"
+tui-image = { git = "https://github.com/arraypad/tui-image" }
 
 [dependencies.confy]
 version = "0.5.0"

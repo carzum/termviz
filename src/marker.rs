@@ -340,8 +340,20 @@ fn parse_line_list_msg(
     let mut lines: Vec<Line> = Vec::new();
 
     let mut point_it = msg.points.iter();
+    let mut color_it = msg.colors.iter();
 
     while let Some(msg_p1) = point_it.next() {
+        let msg_color = color_it.next();
+        let local_color_1 = match msg_color {
+            Some(x) => Color::Rgb(
+                (x.r * 255.0) as u8,
+                (x.g * 255.0) as u8,
+                (x.b * 255.0) as u8,
+                ),
+            None => *color,
+        };
+        color_it.next();// these come in pairs, but I currently don't see the necessity to implement gradients
+
         let p1 = iso.transform_point(&Point3::new(msg_p1.x, msg_p1.y, msg_p1.z));
         let msg_p2 = point_it.next().expect("Malformed message.");
         let p2 = iso.transform_point(&Point3::new(msg_p2.x, msg_p2.y, msg_p2.z));
@@ -351,7 +363,7 @@ fn parse_line_list_msg(
             y1: p1.y,
             x2: p2.x,
             y2: p2.y,
-            color: *color,
+            color: local_color_1,
         });
     }
     lines

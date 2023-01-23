@@ -357,6 +357,114 @@ fn parse_line_list_msg(
     lines
 }
 
+fn parse_sphere_msg(
+    msg: &rosrust_msg::visualization_msgs::Marker,
+    color: &tui::style::Color,
+    iso: &Isometry3<f64>,
+) -> Vec<Line> {
+    let mut lines: Vec<Line> = Vec::new();
+
+    let scale = &Point3::new(msg.scale.x, msg.scale.y, msg.scale.z);
+
+    let p1 = iso.transform_point(&Point3::new(-scale.x * 0.5, 0.0, 0.0));
+    let p2 = iso.transform_point(&Point3::new(scale.x * 0.5, 0.0, 0.0));
+    let p3 = iso.transform_point(&Point3::new(0.0, -scale.y * 0.5, 0.0));
+    let p4 = iso.transform_point(&Point3::new(0.0, scale.y * 0.5, 0.0));
+    let p5 = iso.transform_point(&Point3::new(0.0, 0.0, -scale.z * 0.5));
+    let p6 = iso.transform_point(&Point3::new(0.0, 0.0, scale.z * 0.5));
+
+    //central "cross" showing the main axes and the center
+    lines.push(Line {
+        x1: p1.x,
+        y1: p1.y,
+        x2: p2.x,
+        y2: p2.y,
+        color: *color,
+    });
+    lines.push(Line {
+        x1: p3.x,
+        y1: p3.y,
+        x2: p4.x,
+        y2: p4.y,
+        color: *color,
+    });
+    lines.push(Line {
+        x1: p5.x,
+        y1: p5.y,
+        x2: p6.x,
+        y2: p6.y,
+        color: *color,
+    });
+
+    let segment_count = 20; //number of segments of each ellipse for a pair of axes
+    let step = (2.0 * PI) / (segment_count as f64);
+    for i in 0..segment_count {
+        //ellipse around XY cut
+        let ifl = i as f64; //iteration number as float
+        let pa = iso.transform_point(&Point3::new(
+            0.5 * scale.x * (ifl * (step)).sin(),
+            0.5 * scale.y * (ifl * (step)).cos(),
+            0.0,
+        ));
+        let pb = iso.transform_point(&Point3::new(
+            0.5 * scale.x * ((ifl + 1.0) * (step)).sin(),
+            0.5 * scale.y * ((ifl + 1.0) * (step)).cos(),
+            0.0,
+        ));
+        lines.push(Line {
+            x1: pa.x,
+            y1: pa.y,
+            x2: pb.x,
+            y2: pb.y,
+            color: *color,
+        });
+    }
+    for i in 0..segment_count {
+        //ellipse around XZ cut
+        let ifl = i as f64; //iteration number as float
+        let pa = iso.transform_point(&Point3::new(
+            0.5 * scale.x * (ifl * (step)).sin(),
+            0.0,
+            0.5 * scale.z * (ifl * (step)).cos(),
+        ));
+        let pb = iso.transform_point(&Point3::new(
+            0.5 * scale.x * ((ifl + 1.0) * (step)).sin(),
+            0.0,
+            0.5 * scale.z * ((ifl + 1.0) * (step)).cos(),
+        ));
+        lines.push(Line {
+            x1: pa.x,
+            y1: pa.y,
+            x2: pb.x,
+            y2: pb.y,
+            color: *color,
+        });
+    }
+    for i in 0..segment_count {
+        //ellipse around YZ cut
+        let ifl = i as f64; //iteration number as float
+        let pa = iso.transform_point(&Point3::new(
+            0.0,
+            0.5 * scale.y * ((ifl * (step)).cos()),
+            0.5 * scale.z * ((ifl * (step)).sin()),
+        ));
+        let pb = iso.transform_point(&Point3::new(
+            0.0,
+            0.5 * scale.y * (((ifl + 1.0) * (step)).cos()),
+            0.5 * scale.z * (((ifl + 1.0) * (step)).sin()),
+        ));
+        lines.push(Line {
+            x1: pa.x,
+            y1: pa.y,
+            x2: pb.x,
+            y2: pb.y,
+            color: *color,
+        });
+    }
+
+    lines
+}
+
 fn parse_marker_msg(
     msg: &rosrust_msg::visualization_msgs::Marker,
     tf: &rosrust_msg::geometry_msgs::Transform,
@@ -385,6 +493,7 @@ fn parse_marker_msg(
         rosrust_msg::visualization_msgs::Marker::LINE_LIST => {
             parse_line_list_msg(msg, &color, &iso)
         }
+        rosrust_msg::visualization_msgs::Marker::SPHERE => parse_sphere_msg(msg, &color, &iso),
         _ => Vec::new(),
     };
 

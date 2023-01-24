@@ -3,8 +3,8 @@
 pub mod image_view;
 pub mod send_pose;
 pub mod teleoperate;
-pub mod viewport;
 pub mod topic_managment;
+pub mod viewport;
 
 use tui::backend::Backend;
 use tui::Frame;

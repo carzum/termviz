@@ -311,11 +311,11 @@ fn parse_cube_list_msg(
 }
 
 fn parse_points_msg(
-  msg: &rosrust_msg::visualization_msgs::Marker,
-  color: &tui::style::Color,
-  iso: &Isometry3<f64>,
+    msg: &rosrust_msg::visualization_msgs::Marker,
+    color: &tui::style::Color,
+    iso: &Isometry3<f64>,
 ) -> Vec<Line> {
-  return parse_cube_list_msg(msg,color,iso);
+    return parse_cube_list_msg(msg, color, iso);
 }
 
 fn parse_line_strip_msg(
@@ -349,10 +349,10 @@ fn parse_line_list_msg(
                 (x.r * 255.0) as u8,
                 (x.g * 255.0) as u8,
                 (x.b * 255.0) as u8,
-                ),
+            ),
             None => *color,
         };
-        color_it.next();// these come in pairs, but I currently don't see the necessity to implement gradients
+        color_it.next(); // these come in pairs, but I currently don't see the necessity to implement gradients
 
         let p1 = iso.transform_point(&Point3::new(msg_p1.x, msg_p1.y, msg_p1.z));
         let msg_p2 = point_it.next().expect("Malformed message.");
@@ -390,9 +390,7 @@ fn parse_marker_msg(
         rosrust_msg::visualization_msgs::Marker::CUBE_LIST => {
             parse_cube_list_msg(msg, &color, &iso)
         }
-        rosrust_msg::visualization_msgs::Marker::POINTS => {
-          parse_points_msg(msg, &color, &iso)
-        }
+        rosrust_msg::visualization_msgs::Marker::POINTS => parse_points_msg(msg, &color, &iso),
         rosrust_msg::visualization_msgs::Marker::LINE_STRIP => {
             parse_line_strip_msg(msg, &color, &iso)
         }

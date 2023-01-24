@@ -344,7 +344,7 @@ fn parse_line_list_msg(
 
     while let Some(msg_p1) = point_it.next() {
         let msg_color = color_it.next();
-        let local_color_1 = match msg_color {
+        let local_color = match msg_color {
             Some(x) => Color::Rgb(
                 (x.r * 255.0) as u8,
                 (x.g * 255.0) as u8,
@@ -363,7 +363,7 @@ fn parse_line_list_msg(
             y1: p1.y,
             x2: p2.x,
             y2: p2.y,
-            color: local_color_1,
+            color: local_color,
         });
     }
     lines

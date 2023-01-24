@@ -1,15 +1,14 @@
-use crate::config::{ListenerConfigColor, PoseListenerConfig, ListenerConfig, ImageListenerConfig};
-use crate::config::Color as ConfigColor;
 use crate::app_modes::{input, AppMode, BaseMode, Drawable};
+use crate::config::Color as ConfigColor;
+use crate::config::TermvizConfig;
+use crate::config::{ImageListenerConfig, ListenerConfig, ListenerConfigColor, PoseListenerConfig};
+use rand::Rng;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout};
-use crate::config::TermvizConfig;
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
+use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap};
 use tui::Frame;
-use tui::widgets::{Block, Borders, Paragraph, ListState, Wrap, ListItem, List};
-use rand::Rng;
-
 
 #[derive(Clone)]
 struct SelectableTopics {
@@ -67,16 +66,15 @@ impl SelectableTopics {
 
     // Default to 0 if none is selected, the handling of empty vectors should be
     // handled by the caller
-    pub fn pop(&mut self) -> [String; 2]{
+    pub fn pop(&mut self) -> [String; 2] {
         let i = match self.state.selected() {
             Some(i) => {
                 if i > self.items.len() - 1 {
                     self.items.len() - 1
-                }
-                else {
+                } else {
                     i
                 }
-            },
+            }
             None => 0,
         };
         self.items.remove(i)
@@ -87,7 +85,6 @@ pub struct TopicManager {
     // Topic Manger loads the active and supported topics into two lists.
     // The User can shift elements between available and selected topics.
     // topics can only be present in on of the lists.
-
     availible_topics: SelectableTopics,
     selected_topics: SelectableTopics,
     config: TermvizConfig,
@@ -96,32 +93,50 @@ pub struct TopicManager {
 }
 
 impl TopicManager {
-    pub fn new(config: TermvizConfig) ->  TopicManager
-    {
+    pub fn new(config: TermvizConfig) -> TopicManager {
         let config = config.clone();
 
         // Get all topics currently active in the config and sort them by topic type
-        let active_laser_topics: Vec<[String; 2]> = config.laser_topics.iter().map(
-            |i| {[i.topic.clone(),  "sensor_msgs/LaserScan".to_string()]}
-        ).collect();
-        let active_marker_array_topics: Vec<[String; 2]> = config.marker_array_topics.iter().map(
-            |i| {[i.topic.clone(),  "visualization_msgs/MarkerArray".to_string()]}
-        ).collect();
-        let active_marker_topics: Vec<[String; 2]> = config.marker_topics.iter().map(
-            |i| {[i.topic.clone(),  "visualization_msgs/Marker".to_string()]}
-        ).collect();
-        let active_pose_stamped_topics: Vec<[String; 2]> = config.pose_stamped_topics.iter().map(
-            |i| {[i.topic.clone(),  "geometry_msgs/PoseStamped".to_string()]}
-        ).collect();
-        let active_pose_array_topics: Vec<[String; 2]> = config.pose_array_topics.iter().map(
-            |i| {[i.topic.clone(),  "geometry_msgs/PoseArray".to_string()]}
-        ).collect();
-        let active_path_topics: Vec<[String; 2]> = config.path_topics.iter().map(
-            |i| {[i.topic.clone(),  "nav_msgs/Path".to_string()]}
-        ).collect();
-        let active_image_topics: Vec<[String; 2]> = config.path_topics.iter().map(
-            |i| {[i.topic.clone(),  "sensor_msgs/Image".to_string()]}
-        ).collect();
+        let active_laser_topics: Vec<[String; 2]> = config
+            .laser_topics
+            .iter()
+            .map(|i| [i.topic.clone(), "sensor_msgs/LaserScan".to_string()])
+            .collect();
+        let active_marker_array_topics: Vec<[String; 2]> = config
+            .marker_array_topics
+            .iter()
+            .map(|i| {
+                [
+                    i.topic.clone(),
+                    "visualization_msgs/MarkerArray".to_string(),
+                ]
+            })
+            .collect();
+        let active_marker_topics: Vec<[String; 2]> = config
+            .marker_topics
+            .iter()
+            .map(|i| [i.topic.clone(), "visualization_msgs/Marker".to_string()])
+            .collect();
+        let active_pose_stamped_topics: Vec<[String; 2]> = config
+            .pose_stamped_topics
+            .iter()
+            .map(|i| [i.topic.clone(), "geometry_msgs/PoseStamped".to_string()])
+            .collect();
+        let active_pose_array_topics: Vec<[String; 2]> = config
+            .pose_array_topics
+            .iter()
+            .map(|i| [i.topic.clone(), "geometry_msgs/PoseArray".to_string()])
+            .collect();
+        let active_path_topics: Vec<[String; 2]> = config
+            .path_topics
+            .iter()
+            .map(|i| [i.topic.clone(), "nav_msgs/Path".to_string()])
+            .collect();
+        let active_image_topics: Vec<[String; 2]> = config
+            .path_topics
+            .iter()
+            .map(|i| [i.topic.clone(), "sensor_msgs/Image".to_string()])
+            .collect();
         // Collect them into a big list
         let all_active_topics = [
             active_image_topics,
@@ -131,9 +146,9 @@ impl TopicManager {
             active_path_topics,
             active_pose_array_topics,
             active_pose_stamped_topics,
-        ].concat();
+        ]
+        .concat();
 
-        
         // We could get this from config, but would need some breaking changes in config
         let supported_topic_types = vec![
             "geometry_msgs/PoseArray".to_string(),
@@ -147,14 +162,10 @@ impl TopicManager {
         // Collect all topics, which:
         //  - are supported
         //  - are inactive
-        let supported_topics: Vec<[String; 2]>= rosrust::topics()
+        let supported_topics: Vec<[String; 2]> = rosrust::topics()
             .unwrap()
             .iter()
-            .map(|topic|{
-                [topic.name.to_string(),
-                 topic.datatype.to_string()
-                ]
-            })
+            .map(|topic| [topic.name.to_string(), topic.datatype.to_string()])
             .filter(|el| supported_topic_types.contains(&el[1].to_string()))
             .filter(|el| !all_active_topics.contains(&el))
             .collect();
@@ -173,12 +184,16 @@ impl TopicManager {
     }
 
     pub fn shift_active_element_right(&mut self) {
-        if self.availible_topics.items.is_empty() {return}
+        if self.availible_topics.items.is_empty() {
+            return;
+        }
         let x = self.availible_topics.pop();
         self.selected_topics.add(x);
     }
     pub fn shift_active_element_left(&mut self) {
-        if self.selected_topics.items.is_empty() {return}
+        if self.selected_topics.items.is_empty() {
+            return;
+        }
         let x = self.selected_topics.pop();
         self.availible_topics.add(x);
     }
@@ -200,52 +215,58 @@ impl TopicManager {
         let mut rng = rand::thread_rng();
         for topic in self.selected_topics.items.iter() {
             match topic[1].clone().as_ref() {
-                "sensor_msgs/LaserScan" => config.laser_topics.push(
-                    ListenerConfigColor{
+                "sensor_msgs/LaserScan" => config.laser_topics.push(ListenerConfigColor {
+                    topic: topic[0].clone(),
+                    color: ConfigColor {
+                        r: rng.gen_range(0..255),
+                        g: rng.gen_range(0..255),
+                        b: rng.gen_range(0..255),
+                    },
+                }),
+                "visualization_msgs/MarkerArray" => {
+                    config.marker_array_topics.push(ListenerConfig {
                         topic: topic[0].clone(),
-                        color: ConfigColor{r:rng.gen_range(0..255), g:rng.gen_range(0..255), b:rng.gen_range(0..255)},
-                    }
-                ),
-                "visualization_msgs/MarkerArray" => config.marker_array_topics.push(
-                    ListenerConfig {
+                    })
+                }
+                "visualization_msgs/Marker" => config.marker_topics.push(ListenerConfig {
+                    topic: topic[0].clone(),
+                }),
+                "geometry_msgs/PoseStamped" => {
+                    config.pose_stamped_topics.push(PoseListenerConfig {
                         topic: topic[0].clone(),
-                    }
-                ),
-                "visualization_msgs/Marker" => config.marker_topics.push(
-                    ListenerConfig {
-                        topic: topic[0].clone(),
-                    }
-                ),
-                "geometry_msgs/PoseStamped" => config.pose_stamped_topics.push(
-                    PoseListenerConfig{
-                        topic: topic[0].clone(),
-                        color: ConfigColor{r:rng.gen_range(0..255), g:rng.gen_range(0..255), b:rng.gen_range(0..255)},
+                        color: ConfigColor {
+                            r: rng.gen_range(0..255),
+                            g: rng.gen_range(0..255),
+                            b: rng.gen_range(0..255),
+                        },
                         length: 0.2,
                         style: "axis".to_string(),
-                    }
-                ),
-                "geometry_msgs/PoseArray" => config.pose_array_topics.push(
-                    PoseListenerConfig{
-                        topic: topic[0].clone(),
-                        color: ConfigColor{r:rng.gen_range(0..255), g:rng.gen_range(0..255), b:rng.gen_range(0..255)},
-                        length: 0.2,
-                        style: "axis".to_string(),
-                    }
-                ),
-                "nav_msgs/Path" => config.path_topics.push(
-                    PoseListenerConfig{
-                        topic: topic[0].clone(),
-                        color: ConfigColor{r:rng.gen_range(0..255), g:rng.gen_range(0..255), b:rng.gen_range(0..255)},
-                        length: 0.2,
-                        style: "axis".to_string(),
-                    }
-                ),
-                "sensor_msg/Image" => config.image_topics.push(
-                    ImageListenerConfig{
-                        topic: topic[0].clone(),
-                        rotation: 0,
-                    }
-                ),
+                    })
+                }
+                "geometry_msgs/PoseArray" => config.pose_array_topics.push(PoseListenerConfig {
+                    topic: topic[0].clone(),
+                    color: ConfigColor {
+                        r: rng.gen_range(0..255),
+                        g: rng.gen_range(0..255),
+                        b: rng.gen_range(0..255),
+                    },
+                    length: 0.2,
+                    style: "axis".to_string(),
+                }),
+                "nav_msgs/Path" => config.path_topics.push(PoseListenerConfig {
+                    topic: topic[0].clone(),
+                    color: ConfigColor {
+                        r: rng.gen_range(0..255),
+                        g: rng.gen_range(0..255),
+                        b: rng.gen_range(0..255),
+                    },
+                    length: 0.2,
+                    style: "axis".to_string(),
+                }),
+                "sensor_msg/Image" => config.image_topics.push(ImageListenerConfig {
+                    topic: topic[0].clone(),
+                    rotation: 0,
+                }),
 
                 _ => (),
             }
@@ -255,7 +276,6 @@ impl TopicManager {
         let _ = confy::store("termviz", "termviz", &(config));
         self.was_saved = true
     }
-
 }
 
 impl<B: Backend> BaseMode<B> for TopicManager {}
@@ -281,8 +301,7 @@ impl AppMode for TopicManager {
                 input::CONFIRM => self.save(),
                 _ => (),
             }
-        }
-        else {
+        } else {
             match input.as_str() {
                 input::UP => self.selected_topics.previous(),
                 input::DOWN => self.selected_topics.next(),
@@ -322,12 +341,10 @@ impl AppMode for TopicManager {
             ],
             [
                 input::ROTATE_LEFT.to_string(),
-                "Changes the list where items are selected to the supported topics list".to_string(),
+                "Changes the list where items are selected to the supported topics list"
+                    .to_string(),
             ],
-            [
-                input::CONFIRM.to_string(),
-                "Saves to config".to_string(),
-            ],
+            [input::CONFIRM.to_string(), "Saves to config".to_string()],
         ]
     }
 
@@ -360,43 +377,58 @@ impl<B: Backend> Drawable<B> for TopicManager {
             .alignment(Alignment::Center)
             .wrap(Wrap { trim: false });
 
-        if ! self.was_saved 
-        {
+        if !self.was_saved {
             let left_chunks = Layout::default()
                 .direction(Direction::Horizontal)
                 .margin(1)
-                .constraints(
-                    [
-                        Constraint::Percentage(50),
-                        Constraint::Percentage(50),
-                    ]
-                    .as_ref(),
-                )
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
                 .split(areas[2]);
             // Widget creation
-            let items: Vec<ListItem>= self.availible_topics.items.iter().map(|i| ListItem::new(
-                    format!("{} : {}", i[0], i[1])
-                )
-            ).collect();
+            let items: Vec<ListItem> = self
+                .availible_topics
+                .items
+                .iter()
+                .map(|i| ListItem::new(format!("{} : {}", i[0], i[1])))
+                .collect();
             // The `List` widget is then built with those items.
             let list = List::new(items)
                 .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-                .block( Block::default().title("Available Topics").borders(Borders::ALL))
+                .block(
+                    Block::default()
+                        .title("Available Topics")
+                        .borders(Borders::ALL),
+                )
                 .highlight_symbol(">> ");
 
-            let selected_items: Vec<ListItem>= self.selected_topics.items.iter().map(|i| ListItem::new(i[0].as_ref())).collect();
+            let selected_items: Vec<ListItem> = self
+                .selected_topics
+                .items
+                .iter()
+                .map(|i| ListItem::new(i[0].as_ref()))
+                .collect();
             // The `List` widget is then built with those items.
             let selected_list = List::new(selected_items)
                 .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-                .block( Block::default().title("Active Topics").borders(Borders::ALL))
+                .block(
+                    Block::default()
+                        .title("Active Topics")
+                        .borders(Borders::ALL),
+                )
                 .highlight_symbol(">> ");
             // Finally the widget is rendered using the associated state. `events.state` is
             // effectively the only thing that we will "remember" from this draw call.
             f.render_widget(title, areas[0]);
-            f.render_stateful_widget(list, left_chunks[0], &mut self.availible_topics.state.clone());
-            f.render_stateful_widget(selected_list, left_chunks[1], &mut self.selected_topics.state.clone());
-        }
-        else {
+            f.render_stateful_widget(
+                list,
+                left_chunks[0],
+                &mut self.availible_topics.state.clone(),
+            );
+            f.render_stateful_widget(
+                selected_list,
+                left_chunks[1],
+                &mut self.selected_topics.state.clone(),
+            );
+        } else {
             let user_info = Paragraph::new(Spans::from(Span::raw(
                 "Config has been saved, restart termviz to use it. \n Switch to any other mode to continue"
             )))

@@ -47,13 +47,17 @@ The mode allows to publish a `geometry_msgs::PoseWithCovarianceStamped` message 
 
 ### Teleoperate mode
 
-The mode allows to teleoperate the robot by sending `geometry_msgs::Twist` messages on the specified topic (`cmd_vel` by default). The messages are continuosly sent. Any unmapped key switches the sent messages to 0, i.e., stops the robot.
+The mode allows to teleoperate the robot by sending `geometry_msgs::Twist` messages on the specified topic (`cmd_vel` by default). The messages are continuously sent. Any unmapped key switches the sent messages to 0, i.e., stops the robot.
 Settings can be found under `teleop` in the configuration file.
 
 ### Image mode
 
 This mode allows to visualize images received on the topics specified under `image_topics` in the configuration file.
 
+### Topic Manager
+
+The topic manager can add and remove topics int the termviz config. When confirmed the config will be stored and termviz must be restarted.
+Only supported topics are displayed, topics can only be in the active or in the available list.
 
 ## Default config
 

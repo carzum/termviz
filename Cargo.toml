@@ -18,6 +18,7 @@ futures = "0.3"
 futures-timer = "3.0"
 image = "*"
 nalgebra = ">=0.29.0"
+rand = "0.8.5"
 rosrust = "0.9"
 rosrust_msg = "0.1"
 rustros_tf = { git = "https://github.com/maximaerz/rustros_tf" }

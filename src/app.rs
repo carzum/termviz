@@ -30,6 +30,7 @@ pub struct App<B: Backend> {
 
 impl<B: Backend> App<B> {
     pub fn new(tf_listener: Arc<rustros_tf::TfListener>, config: TermvizConfig) -> App<B> {
+        let config_copy = config.clone();
         let listeners = Listeners::new(
             tf_listener.clone(),
             config.fixed_frame.clone(),
@@ -61,12 +62,13 @@ impl<B: Backend> App<B> {
             viewport,
             config.teleop,
         ));
+        let topic_manager = Box::new(app_modes::topic_managment::TopicManager::new(config_copy));
         let image_view = Box::new(app_modes::image_view::ImageView::new(config.image_topics));
         App {
             mode: 1,
             show_help: false,
             keymap: config.key_mapping,
-            app_modes: vec![send_pose, teleop, image_view],
+            app_modes: vec![send_pose, teleop, image_view, topic_manager],
         }
     }
 

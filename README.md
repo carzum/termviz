@@ -50,6 +50,9 @@ The mode allows to publish a `geometry_msgs::PoseWithCovarianceStamped` message 
 The mode allows to teleoperate the robot by sending `geometry_msgs::Twist` messages on the specified topic (`cmd_vel` by default). The messages are continuously sent. Any unmapped key switches the sent messages to 0, i.e., stops the robot.
 Settings can be found under `teleop` in the configuration file.
 
+If the parameter 'publish_cmd_vel_when_idle' is set to true (default), the mode will keep publishing STOP (all velocities 0).
+Otherwise the command is only sent once! This should allow users to teleoperate robots without blocking them actively
+
 ### Image mode
 
 This mode allows to visualize images received on the topics specified under `image_topics` in the configuration file.
@@ -142,6 +145,7 @@ teleop:                        # Parameters for the Teleoperate mode.
   default_increment: 0.1       # Default velocity increment when pressing a key.
   increment_step: 0.1          # Step for increasing the velocity increment.
   cmd_vel_topic: cmd_vel       # Topic on which to publish the velocity commands.
+  publish_cmd_vel_when_idle: true # If true keep publishing 0 velocities, only publish once otherwise
 ```
 
 ## Maintainers

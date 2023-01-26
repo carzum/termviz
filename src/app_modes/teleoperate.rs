@@ -14,6 +14,8 @@ pub struct Teleoperate {
     cmd_vel_pub: rosrust::Publisher<rosrust_msg::geometry_msgs::Twist>,
     increment: f64,
     increment_step: f64,
+    publish_cmd_vel_when_idle: bool,
+    has_published_zero_once: bool,
 }
 
 pub struct Velocities {
@@ -36,11 +38,23 @@ impl Teleoperate {
             current_velocities: initial_velocities,
             increment: config.default_increment,
             increment_step: config.increment_step,
+            publish_cmd_vel_when_idle: config.publish_cmd_vel_when_idle,
+            has_published_zero_once: true, // Initialize to true so the robot is not stopped when entering the mode
         }
     }
 }
 
 impl<B: Backend> BaseMode<B> for Teleoperate {}
+
+impl Teleoperate {
+    fn publish_current_cmd_val(&mut self) {
+        let mut vel_cmd = rosrust_msg::geometry_msgs::Twist::default();
+        vel_cmd.linear.x = self.current_velocities.x;
+        vel_cmd.linear.y = self.current_velocities.y;
+        vel_cmd.angular.z = self.current_velocities.theta;
+        self.cmd_vel_pub.send(vel_cmd).unwrap();
+    }
+}
 
 impl AppMode for Teleoperate {
     fn handle_input(&mut self, input: &String) {
@@ -63,11 +77,24 @@ impl AppMode for Teleoperate {
     }
 
     fn run(&mut self) {
-        let mut vel_cmd = rosrust_msg::geometry_msgs::Twist::default();
-        vel_cmd.linear.x = self.current_velocities.x;
-        vel_cmd.linear.y = self.current_velocities.y;
-        vel_cmd.angular.z = self.current_velocities.theta;
-        self.cmd_vel_pub.send(vel_cmd).unwrap();
+        // If the velocity is reset to 0 only publish it once
+        // this prevents the robot from being blocked if the
+        // app mode is not closed
+        if  !self.publish_cmd_vel_when_idle
+            && self.current_velocities.x == 0 as f64
+            && self.current_velocities.y == 0 as f64
+            && self.current_velocities.theta == 0 as f64
+        {
+            // If we did not publish the stop, do it once
+            if !self.has_published_zero_once {
+                self.has_published_zero_once = true;
+                self.publish_current_cmd_val()
+            }
+        } else {
+            // Otherwise just publish
+            self.has_published_zero_once = false;
+            self.publish_current_cmd_val()
+        }
     }
 
     fn reset(&mut self) {

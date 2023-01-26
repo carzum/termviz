@@ -86,6 +86,7 @@ pub struct TeleopConfig {
     pub default_increment: f64,
     pub increment_step: f64,
     pub cmd_vel_topic: String,
+    pub publish_cmd_vel_when_idle: bool,
 }
 
 impl Default for TeleopConfig {
@@ -94,6 +95,7 @@ impl Default for TeleopConfig {
             default_increment: 0.1,
             increment_step: 0.1,
             cmd_vel_topic: "cmd_vel".to_string(),
+            publish_cmd_vel_when_idle: true,
         }
     }
 }

@@ -80,7 +80,7 @@ impl AppMode for Teleoperate {
         // If the velocity is reset to 0 only publish it once
         // this prevents the robot from being blocked if the
         // app mode is not closed
-        if  !self.publish_cmd_vel_when_idle
+        if !self.publish_cmd_vel_when_idle
             && self.current_velocities.x == 0 as f64
             && self.current_velocities.y == 0 as f64
             && self.current_velocities.theta == 0 as f64

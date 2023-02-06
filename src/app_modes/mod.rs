@@ -33,6 +33,8 @@ pub mod input {
     pub const ZOOM_OUT: &str = "Zoom out";
     pub const INCREMENT_STEP: &str = "Increment step";
     pub const DECREMENT_STEP: &str = "Decrement step";
+    pub const NEXT: &str = "Next";
+    pub const PREVIOUS: &str = "Previous";
     pub const SHOW_HELP: &str = "Show help";
     pub const UNMAPPED: &str = "Any other";
 }

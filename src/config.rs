@@ -212,29 +212,33 @@ pub fn ask_store() -> bool {
 }
 
 pub fn get_config(config_path: Option<&String>) -> Result<TermvizConfig, confy::ConfyError> {
-    let mut cfg = TermvizConfig::default();
     let user_path = confy::get_configuration_file_path("termviz", "termviz")?;
-    if config_path.is_some() {
+
+    // decide on which config path to load
+    let load_config_path = if config_path.is_some() {
         // config path provided by command line arg
-        cfg = confy::load_path(config_path.unwrap()).unwrap();
-    } else if Path::new(&user_path).exists() {
-        // use user config if exists
-        cfg = confy::load("termviz", "termviz")?;
+        Path::new(config_path.unwrap())
+    } else if user_path.as_path().exists() {
+        // use user config if it exists
+        user_path.as_path()
     } else {
         // fallback to system config
-        let sys_path = "/etc/termviz/termviz.yml";
-        if Path::new(sys_path).exists() {
-            cfg = confy::load_path(sys_path)?;
-        } else {
-            // no config found, generate default
-            println!("No config found, using default");
-            let store = ask_store();
-            if store {
-                let res = confy::store("termviz", "termviz", &cfg);
-                match res {
-                    Ok(_) => println!("Stored default config at {:?}", user_path),
-                    Err(e) => println!("Error storing default config: {:?}", e),
-                }
+        Path::new("/etc/termviz/termviz.yml")
+    };
+
+    let mut cfg = TermvizConfig::default();
+    if load_config_path.exists() {
+        println!("Loading config from: {:?}", load_config_path);
+        cfg = confy::load_path(load_config_path)?;
+    } else {
+        // no config found, generate default
+        println!("No config found, using default");
+        let store = ask_store();
+        if store {
+            let res = confy::store("termviz", "termviz", &cfg);
+            match res {
+                Ok(_) => println!("Stored default config at {:?}", user_path),
+                Err(e) => println!("Error storing default config: {:?}", e),
             }
         }
     };

@@ -48,7 +48,7 @@ impl AppMode for ImageView {
     fn handle_input(&mut self, input: &String) {
         if self.images.len() > 0 {
             match input.as_str() {
-                input::LEFT => {
+                input::LEFT | input::PREVIOUS => {
                     self.images[self.active_sub].deactivate();
                     self.active_sub = if self.active_sub > 0 {
                         self.active_sub - 1
@@ -56,7 +56,7 @@ impl AppMode for ImageView {
                         self.images.len() - 1
                     };
                 }
-                input::RIGHT => {
+                input::RIGHT | input::NEXT => {
                     self.images[self.active_sub].deactivate();
                     self.active_sub = (self.active_sub + 1) % self.images.len();
                 }

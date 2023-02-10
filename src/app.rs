@@ -55,7 +55,7 @@ impl<B: Backend> App<B> {
             size().unwrap(),
         )));
         let send_pose = Box::new(app_modes::send_pose::SendPose::new(
-            &config.send_pose_topic,
+            &config.send_pose_topics,
             viewport.clone(),
         ));
         let teleop = Box::new(app_modes::teleoperate::Teleoperate::new(
@@ -144,7 +144,7 @@ impl<B: Backend> App<B> {
             .map(|(i, mode)| {
                 [
                     format!("Switch to mode {}", (i + 1)),
-                    "Switch to ".to_string() + &mode.get_name() + &" mode.".to_string(),
+                    "Switches to ".to_string() + &mode.get_name() + &" mode.".to_string(),
                 ]
             })
             .collect();

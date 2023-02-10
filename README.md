@@ -43,7 +43,7 @@ Pressing `h` shows the help screen, which will describe the current mode and the
 
 ### Send pose mode
 
-The mode allows to publish a `geometry_msgs::PoseWithCovarianceStamped` message on a topic. The desired pose can be selected by moving the outline of the robot in the map. Confirming the operation (`Enter` by default) publishes the pose on the topic specified under `send_pose_topic` in the configuration file.
+The mode allows to publish a pose message on a topic, for example to send an initial pose estimate to a localization system or a goal pose for the navigation stack. The supported types are `geometry_msgs::Pose`, `geometry_msgs::PoseStamped`, and `geometry_msgs::PoseWithCovarianceStamped`. The desired pose can be selected by moving the outline of the robot in the map. Confirming the operation (`Enter` by default) publishes the pose on the selected topic among those specified under `send_pose_topics` in the configuration file. The target topic can be selected using the "next" and "previous" keys (`n` and `b` by default).
 
 ### Teleoperate mode
 
@@ -116,7 +116,9 @@ pose_stamped_topics:            # geometry_msgs::PoseStamped topics.
       g: 0
       b: 0
     length: 0.2                 # Length of the axes.
-send_pose_topic: initialpose    # Topic on which to publish poses in Send Pose mode.
+send_pose_topics:               # Topics on which to publish poses in Send Pose mode.
+  - topic: pose                 # The topic name.
+    msg_type: PoseStamped       # The topic's type. Supported are Pose, PoseStamped and PoseWithCovarianceStamped.
 target_framerate: 30            # Refresh rate of the visualization. Lower this if the ssh connection is slow.
 axis_length: 0.5                # Length of the axes of the robot frame
 visible_area:                   # Default boundaries of the visible areas. Determines the initial level of zoom.

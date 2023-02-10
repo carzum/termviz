@@ -67,6 +67,12 @@ pub struct ImageListenerConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SendPoseConfig {
+    pub topic: String,
+    pub msg_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ListenerConfigColor {
     pub topic: String,
     pub color: Color,
@@ -113,7 +119,7 @@ pub struct TermvizConfig {
     pub pointcloud2_topics: Vec<PointCloud2ListenerConfig>,
     pub pose_array_topics: Vec<PoseListenerConfig>,
     pub pose_stamped_topics: Vec<PoseListenerConfig>,
-    pub send_pose_topic: String,
+    pub send_pose_topics: Vec<SendPoseConfig>,
     pub target_framerate: i64,
     pub axis_length: f64,
     pub visible_area: Vec<f64>, //Borders of map from center in Meter
@@ -172,7 +178,10 @@ impl Default for TermvizConfig {
                 topic: "pointcloud2".to_string(),
                 use_rgb: false,
             }],
-            send_pose_topic: "initialpose".to_string(),
+            send_pose_topics: vec![SendPoseConfig {
+                topic: "initialpose".to_string(),
+                msg_type: "PoseWithCovarianceStamped".to_string(),
+            }],
             target_framerate: 30,
             axis_length: 0.5,
             visible_area: vec![-5., 5., -5., 5.],
@@ -190,6 +199,8 @@ impl Default for TermvizConfig {
                 (input::ZOOM_OUT.to_string(), "-".to_string()),
                 (input::INCREMENT_STEP.to_string(), "k".to_string()),
                 (input::DECREMENT_STEP.to_string(), "j".to_string()),
+                (input::NEXT.to_string(), "n".to_string()),
+                (input::PREVIOUS.to_string(), "b".to_string()),
                 (input::SHOW_HELP.to_string(), "h".to_string()),
                 (input::MODE_2.to_string(), "t".to_string()),
                 (input::MODE_3.to_string(), "i".to_string()),

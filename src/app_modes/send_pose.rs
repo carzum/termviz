@@ -2,6 +2,7 @@
 
 use crate::app_modes::viewport::{UseViewport, Viewport};
 use crate::app_modes::{input, AppMode, BaseMode};
+use crate::config::SendPoseConfig;
 use crate::footprint::get_current_footprint;
 use crate::transformation;
 use approx::AbsDiffEq;
@@ -12,19 +13,114 @@ use tui::backend::Backend;
 use tui::style::Color;
 use tui::widgets::canvas::{Context, Line};
 
+trait BasePosePubWrapper {
+    fn get_topic(&self) -> &String;
+    fn send(&self, msg: rosrust_msg::geometry_msgs::Pose, frame_id: String);
+}
+
+struct PosePubWrapper {
+    topic: String,
+    publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::Pose>,
+}
+
+impl PosePubWrapper {
+    pub fn new(topic: &String) -> PosePubWrapper {
+        PosePubWrapper {
+            topic: topic.clone(),
+            publisher: rosrust::publish(&topic, 1).unwrap(),
+        }
+    }
+}
+
+impl BasePosePubWrapper for PosePubWrapper {
+    fn get_topic(&self) -> &String {
+        &self.topic
+    }
+
+    fn send(&self, msg: rosrust_msg::geometry_msgs::Pose, _frame_id: String) {
+        self.publisher.send(msg).unwrap();
+    }
+}
+
+struct PoseStampedPubWrapper {
+    topic: String,
+    publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::PoseStamped>,
+}
+
+impl PoseStampedPubWrapper {
+    pub fn new(topic: &String) -> PoseStampedPubWrapper {
+        PoseStampedPubWrapper {
+            topic: topic.clone(),
+            publisher: rosrust::publish(&topic, 1).unwrap(),
+        }
+    }
+}
+
+impl BasePosePubWrapper for PoseStampedPubWrapper {
+    fn get_topic(&self) -> &String {
+        &self.topic
+    }
+
+    fn send(&self, msg: rosrust_msg::geometry_msgs::Pose, frame_id: String) {
+        let mut msg_stamped = rosrust_msg::geometry_msgs::PoseStamped::default();
+        msg_stamped.header.frame_id = frame_id;
+        msg_stamped.pose.orientation.x = msg.orientation.x;
+        msg_stamped.pose.orientation.y = msg.orientation.y;
+        msg_stamped.pose.orientation.z = msg.orientation.z;
+        msg_stamped.pose.orientation.w = msg.orientation.w;
+        msg_stamped.pose.position.x = msg.position.x;
+        msg_stamped.pose.position.y = msg.position.y;
+        msg_stamped.pose.position.z = 0.0;
+        self.publisher.send(msg_stamped).unwrap();
+    }
+}
+
+struct PoseCovPubWrapper {
+    topic: String,
+    publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::PoseWithCovarianceStamped>,
+}
+
+impl PoseCovPubWrapper {
+    pub fn new(topic: &String) -> PoseCovPubWrapper {
+        PoseCovPubWrapper {
+            topic: topic.clone(),
+            publisher: rosrust::publish(&topic, 1).unwrap(),
+        }
+    }
+}
+
+impl BasePosePubWrapper for PoseCovPubWrapper {
+    fn get_topic(&self) -> &String {
+        &self.topic
+    }
+
+    fn send(&self, msg: rosrust_msg::geometry_msgs::Pose, frame_id: String) {
+        let mut msg_cov = rosrust_msg::geometry_msgs::PoseWithCovarianceStamped::default();
+        msg_cov.header.frame_id = frame_id;
+        msg_cov.pose.pose.orientation.x = msg.orientation.x;
+        msg_cov.pose.pose.orientation.y = msg.orientation.y;
+        msg_cov.pose.pose.orientation.z = msg.orientation.z;
+        msg_cov.pose.pose.orientation.w = msg.orientation.w;
+        msg_cov.pose.pose.position.x = msg.position.x;
+        msg_cov.pose.pose.position.y = msg.position.y;
+        msg_cov.pose.pose.position.z = 0.0;
+        self.publisher.send(msg_cov).unwrap();
+    }
+}
+
 /// Represents the send pose mode.
 pub struct SendPose {
     viewport: Rc<RefCell<Viewport>>,
     increment: f64,
-    topic: String,
     robot_pose: Isometry2<f64>,
     new_pose: Isometry2<f64>,
-    publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::PoseWithCovarianceStamped>,
+    current_topic: usize,
+    publishers: Vec<Box<dyn BasePosePubWrapper>>,
     ghost_active: bool,
 }
 
 impl SendPose {
-    pub fn new(topic: &String, viewport: Rc<RefCell<Viewport>>) -> SendPose {
+    pub fn new(topics: &Vec<SendPoseConfig>, viewport: Rc<RefCell<Viewport>>) -> SendPose {
         let base_link_pose = viewport
             .borrow()
             .tf_listener
@@ -36,11 +132,27 @@ impl SendPose {
             .unwrap()
             .transform;
         let robot_pose = transformation::ros_to_iso2d(&base_link_pose);
+
+        let mut publishers = Vec::<Box<dyn BasePosePubWrapper>>::new();
+
+        for topic in topics {
+            match topic.msg_type.as_str() {
+                "Pose" => publishers.push(Box::new(PosePubWrapper::new(&topic.topic))),
+                "PoseStamped" => {
+                    publishers.push(Box::new(PoseStampedPubWrapper::new(&topic.topic)))
+                }
+                "PoseWithCovarianceStamped" => {
+                    publishers.push(Box::new(PoseCovPubWrapper::new(&topic.topic)))
+                }
+                _ => {}
+            }
+        }
+
         SendPose {
             viewport: viewport,
-            publisher: rosrust::publish(topic, 1).unwrap(),
+            current_topic: 0,
+            publishers: publishers,
             increment: 0.1,
-            topic: topic.clone(),
             robot_pose: robot_pose.clone(),
             new_pose: robot_pose,
             ghost_active: false,
@@ -58,17 +170,16 @@ impl SendPose {
     fn send_new_pose(&mut self) {
         if self.new_pose.abs_diff_ne(&self.robot_pose, 0.01) {
             let pose = transformation::iso2d_to_ros(&self.new_pose);
-            let mut msg = rosrust_msg::geometry_msgs::PoseWithCovarianceStamped::default();
-            msg.header.frame_id = self.viewport.borrow().static_frame.to_string();
-            msg.pose.pose.position.x = 1.0;
-            msg.pose.pose.orientation.x = pose.rotation.x;
-            msg.pose.pose.orientation.y = pose.rotation.y;
-            msg.pose.pose.orientation.z = pose.rotation.z;
-            msg.pose.pose.orientation.w = pose.rotation.w;
-            msg.pose.pose.position.x = pose.translation.x;
-            msg.pose.pose.position.y = pose.translation.y;
-            msg.pose.pose.position.z = 0.0;
-            self.publisher.send(msg).unwrap();
+            let frame_id = self.viewport.borrow().static_frame.to_string();
+            let mut msg = rosrust_msg::geometry_msgs::Pose::default();
+            msg.orientation.x = pose.rotation.x;
+            msg.orientation.y = pose.rotation.y;
+            msg.orientation.z = pose.rotation.z;
+            msg.orientation.w = pose.rotation.w;
+            msg.position.x = pose.translation.x;
+            msg.position.y = pose.translation.y;
+            msg.position.z = 0.0;
+            self.publishers[self.current_topic].send(msg, frame_id);
             self.ghost_active = false;
         }
     }
@@ -109,6 +220,14 @@ impl AppMode for SendPose {
             input::ROTATE_RIGHT => self.move_new_pose(0.0, 0.0, -self.increment),
             input::INCREMENT_STEP => self.increment += 0.1,
             input::DECREMENT_STEP => self.increment -= 0.1,
+            input::NEXT => self.current_topic = (self.current_topic + 1) % self.publishers.len(),
+            input::PREVIOUS => {
+                self.current_topic = if self.current_topic > 0 {
+                    self.current_topic - 1
+                } else {
+                    self.publishers.len() - 1
+                };
+            }
             input::CANCEL => self.reset(),
             input::CONFIRM => self.send_new_pose(),
             _ => (),
@@ -121,8 +240,8 @@ impl AppMode for SendPose {
 
     fn get_description(&self) -> Vec<String> {
         vec![
-            "This mode allows to publish a PoseWithCovarianceStamped message on a topic."
-                .to_string(),
+            "This mode allows to publish a pose message on a topic.".to_string(),
+            "The top bar shows the current selected topic to which the pose is sent.".to_string(),
             "The viewport is centered on the preview outline of where the pose is on the map."
                 .to_string(),
         ]
@@ -169,6 +288,14 @@ impl AppMode for SendPose {
             [
                 input::DECREMENT_STEP.to_string(),
                 "Decreases the step size for manipulating the desired pose.".to_string(),
+            ],
+            [
+                input::NEXT.to_string(),
+                "Switches to the next topic to which the poses are sent.".to_string(),
+            ],
+            [
+                input::PREVIOUS.to_string(),
+                "Switches to the previous topic to which the poses are sent.".to_string(),
             ],
         ];
         keymap.extend(self.viewport.borrow().get_keymap());
@@ -225,7 +352,8 @@ impl UseViewport for SendPose {
     fn info(&self) -> String {
         format!(
             "Topic: /{}, Cursor step: {:.2}",
-            &self.topic, &self.increment
+            &self.publishers[self.current_topic].get_topic(),
+            &self.increment
         )
     }
 }

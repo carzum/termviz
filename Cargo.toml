@@ -1,6 +1,6 @@
 [package]
 name = "termviz"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Carsten Zumsande <termviz@zumsande.eu>", "Emanuele Palazzolo <emanuele.palazzolo@gmail.com>", "Michael Maerz <michael0maerz@gmail.com>"]
 edition = "2018"
 license = "MIT"

@@ -162,13 +162,14 @@ impl TopicManager {
         // Collect all topics, which:
         //  - are supported
         //  - are inactive
-        let supported_topics: Vec<[String; 2]> = rosrust::topics()
+        let mut supported_topics: Vec<[String; 2]> = rosrust::topics()
             .unwrap()
             .iter()
             .map(|topic| [topic.name.to_string(), topic.datatype.to_string()])
             .filter(|el| supported_topic_types.contains(&el[1].to_string()))
             .filter(|el| !all_active_topics.contains(&el))
             .collect();
+        supported_topics.sort();
 
         let mut supported_topic_list = SelectableTopics::new(supported_topics);
         supported_topic_list.state.select(Some(0));

@@ -16,12 +16,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use clap::{Arg, Command};
+use clap::{value_parser, Arg, ArgAction, Command};
+use colored::Colorize;
 use crossterm::{
     event::{DisableMouseCapture, Event, EventStream, KeyCode, KeyEvent, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, LeaveAlternateScreen},
 };
+use dialoguer::Confirm;
 use rosrust;
 use rustros_tf::TfListener;
 use std::error::Error;
@@ -35,12 +37,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .arg(
             Arg::new("config").long_help("Optional YAML file with a custom termviz configuration."),
         )
+        .arg(
+            Arg::new("tf-wait-time")
+                .long("tf-wait-time")
+                .short('t')
+                .action(ArgAction::Set)
+                .default_value("1")
+                .long_help("How long to wait for the robot pose TF on startup, in seconds.")
+                .value_parser(value_parser!(u64)),
+        )
         .after_help("More documentation can be found at: https://github.com/carzum/termviz")
         .get_matches();
 
     let conf = config::get_config(matches.get_one("config"))?;
 
-    println!("Connecting to ros...");
+    println!("Connecting to ROS...");
     rosrust::init("termviz");
 
     let mut key_to_input: HashMap<KeyCode, String> = conf
@@ -59,22 +70,42 @@ async fn main() -> Result<(), Box<dyn Error>> {
         );
     }
 
-    // Initialize listener and wait for it to come up
-    println!(
-        "Waiting for tf from {:?} to {:?} to become available...",
-        conf.fixed_frame, conf.robot_frame
-    );
+    println!("Starting TF listener");
     let listener = Arc::new(TfListener::new());
-    while rosrust::is_ok() {
-        let res =
-            listener.lookup_transform(&conf.fixed_frame, &conf.robot_frame, rosrust::Time::new());
-        match res {
-            Ok(_res) => break,
-            Err(_e) => {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                continue;
-            }
-        };
+
+    // rustros_tf has no option for a timeout, so we have to do it manually.
+    let mut passed_time = std::time::Duration::ZERO;
+    let max_time = std::time::Duration::from_secs(*matches.get_one::<u64>("tf-wait-time").unwrap());
+    let sleep_time = std::time::Duration::from_millis(100);
+
+    println!("Waiting up to {}s for robot pose...", max_time.as_secs());
+    let robot_pose_available = loop {
+        if listener
+            .lookup_transform(&conf.fixed_frame, &conf.robot_frame, rosrust::Time::new())
+            .is_ok()
+        {
+            break true;
+        }
+        std::thread::sleep(sleep_time);
+        passed_time += sleep_time;
+        if passed_time > max_time {
+            break false;
+        }
+    };
+
+    if !robot_pose_available {
+        println!(
+            "\n{}\n{}",
+            "Robot pose is not being published on TF!".bold().red(),
+            "termviz will display the robot at the origin of the map and you can set the pose from there."
+        );
+        if !Confirm::new()
+            .with_prompt("\nContinue?")
+            .interact()
+            .unwrap()
+        {
+            Err("Aborting.")?;
+        }
     }
 
     println!("Initiating terminal");

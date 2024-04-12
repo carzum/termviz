@@ -121,17 +121,17 @@ pub struct SendPose {
 
 impl SendPose {
     pub fn new(topics: &Vec<SendPoseConfig>, viewport: Rc<RefCell<Viewport>>) -> SendPose {
-        let base_link_pose = viewport
-            .borrow()
-            .tf_listener
-            .lookup_transform(
-                &viewport.borrow().static_frame,
-                &viewport.borrow().robot_frame,
-                rosrust::Time::new(),
-            )
-            .unwrap()
-            .transform;
-        let robot_pose = transformation::ros_to_iso2d(&base_link_pose);
+        let base_link_pose = viewport.borrow().tf_listener.lookup_transform(
+            &viewport.borrow().static_frame,
+            &viewport.borrow().robot_frame,
+            rosrust::Time::new(),
+        );
+
+        let robot_pose = if base_link_pose.is_ok() {
+            transformation::ros_to_iso2d(&base_link_pose.unwrap().transform)
+        } else {
+            Isometry2::identity()
+        };
 
         let mut publishers = Vec::<Box<dyn BasePosePubWrapper>>::new();
 
@@ -189,18 +189,18 @@ impl<B: Backend> BaseMode<B> for SendPose {}
 
 impl AppMode for SendPose {
     fn run(&mut self) {
-        let base_link_pose = self
-            .viewport
-            .borrow()
-            .tf_listener
-            .lookup_transform(
-                &self.viewport.borrow().static_frame,
-                &self.viewport.borrow().robot_frame,
-                rosrust::Time::new(),
-            )
-            .unwrap()
-            .transform;
-        self.robot_pose = transformation::ros_to_iso2d(&base_link_pose);
+        let base_link_pose = self.viewport.borrow().tf_listener.lookup_transform(
+            &self.viewport.borrow().static_frame,
+            &self.viewport.borrow().robot_frame,
+            rosrust::Time::new(),
+        );
+
+        self.robot_pose = if base_link_pose.is_ok() {
+            transformation::ros_to_iso2d(&base_link_pose.unwrap().transform)
+        } else {
+            Isometry2::identity()
+        };
+
         if !self.ghost_active {
             self.new_pose = self.robot_pose.clone();
         }

@@ -6,6 +6,7 @@ use crate::laser;
 use crate::map;
 use crate::marker;
 use crate::pointcloud;
+use crate::polygon;
 use crate::pose;
 
 use std::sync::Arc;
@@ -17,6 +18,7 @@ pub struct Listeners {
     pub pose_stamped: Vec<pose::PoseStampedListener>,
     pub pose_array: Vec<pose::PoseArrayListener>,
     pub pointclouds: Vec<pointcloud::PointCloud2Listener>,
+    pub polygons: Vec<polygon::PolygonListener>,
     pub paths: Vec<pose::PathListener>,
 }
 
@@ -31,6 +33,7 @@ impl Listeners {
         pose_stamped_topics: Vec<PoseListenerConfig>,
         pose_array_topics: Vec<PoseListenerConfig>,
         pointcloud2_topics: Vec<PointCloud2ListenerConfig>,
+        polygon_stamped_topics: Vec<ListenerConfigColor>,
         path_topics: Vec<PoseListenerConfig>,
     ) -> Listeners {
         let mut lasers: Vec<laser::LaserListener> = Vec::new();
@@ -69,6 +72,15 @@ impl Listeners {
             ));
         }
 
+        let mut polygons: Vec<polygon::PolygonListener> = Vec::new();
+        for polygon_config in polygon_stamped_topics {
+            polygons.push(polygon::PolygonListener::new(
+                polygon_config,
+                tf_listener.clone(),
+                static_frame.clone(),
+            ));
+        }
+
         let pose_stamped = pose_stamped_topics
             .into_iter()
             .map(|topic| pose::PoseStampedListener::new(topic))
@@ -88,6 +100,7 @@ impl Listeners {
             pose_stamped,
             pose_array,
             pointclouds,
+            polygons,
             paths,
         }
     }

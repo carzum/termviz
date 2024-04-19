@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::io;
 use std::io::Write;
 use std::path::Path;
+use tui::style::Color as TuiColor;
 
 fn default_int() -> i64 {
     0
@@ -35,6 +36,12 @@ pub struct Color {
     pub r: u8,
     pub b: u8,
     pub g: u8,
+}
+
+impl Color {
+    pub fn to_tui(&self) -> TuiColor {
+        return TuiColor::Rgb(self.r, self.g, self.b);
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -117,6 +124,7 @@ pub struct TermvizConfig {
     pub marker_array_topics: Vec<ListenerConfig>,
     pub path_topics: Vec<PoseListenerConfig>,
     pub pointcloud2_topics: Vec<PointCloud2ListenerConfig>,
+    pub polygon_stamped_topics: Vec<ListenerConfigColor>,
     pub pose_array_topics: Vec<PoseListenerConfig>,
     pub pose_stamped_topics: Vec<PoseListenerConfig>,
     pub send_pose_topics: Vec<SendPoseConfig>,
@@ -177,6 +185,10 @@ impl Default for TermvizConfig {
             pointcloud2_topics: vec![PointCloud2ListenerConfig {
                 topic: "pointcloud2".to_string(),
                 use_rgb: false,
+            }],
+            polygon_stamped_topics: vec![ListenerConfigColor {
+                topic: "footprint".to_string(),
+                color: Color { r: 200, b: 0, g: 0 },
             }],
             send_pose_topics: vec![SendPoseConfig {
                 topic: "initialpose".to_string(),

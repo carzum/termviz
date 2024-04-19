@@ -137,6 +137,11 @@ impl TopicManager {
             .iter()
             .map(|i| [i.topic.clone(), "sensor_msgs/Image".to_string()])
             .collect();
+        let polygon_stamped_topics: Vec<[String; 2]> = config
+            .polygon_stamped_topics
+            .iter()
+            .map(|i| [i.topic.clone(), "geometry_msgs/PolygonStamped".to_string()])
+            .collect();
         // Collect them into a big list
         let all_active_topics = [
             active_image_topics,
@@ -146,6 +151,7 @@ impl TopicManager {
             active_path_topics,
             active_pose_array_topics,
             active_pose_stamped_topics,
+            polygon_stamped_topics,
         ]
         .concat();
 
@@ -158,6 +164,7 @@ impl TopicManager {
             "sensor_msgs/LaserScan".to_string(),
             "visualization_msgs/Marker".to_string(),
             "visualization_msgs/MarkerArray".to_string(),
+            "geometry_msgs/PolygonStamped".to_string(),
         ];
         // Collect all topics, which:
         //  - are supported
@@ -209,6 +216,7 @@ impl TopicManager {
         config.pose_stamped_topics.clear();
         config.pose_array_topics.clear();
         config.path_topics.clear();
+        config.polygon_stamped_topics.clear();
 
         // Fill the respective topics
         // The current implementation hardcodes where the topics must go
@@ -268,6 +276,16 @@ impl TopicManager {
                     topic: topic[0].clone(),
                     rotation: 0,
                 }),
+                "geometry_msgs/PolygonStamped" => {
+                    config.polygon_stamped_topics.push(ListenerConfigColor {
+                        topic: topic[0].clone(),
+                        color: ConfigColor {
+                            r: rng.gen_range(0..255),
+                            g: rng.gen_range(0..255),
+                            b: rng.gen_range(0..255),
+                        },
+                    })
+                }
 
                 _ => (),
             }

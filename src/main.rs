@@ -8,6 +8,7 @@ mod listeners;
 mod map;
 mod marker;
 mod pointcloud;
+mod polygon;
 mod pose;
 mod transformation;
 use futures::{future::FutureExt, select, StreamExt};

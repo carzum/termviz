@@ -279,6 +279,12 @@ impl UseViewport for Viewport {
             }
         }
 
+        for polygon in &self.listeners.polygons {
+            for line in polygon.get_lines() {
+                ctx.draw(&line);
+            }
+        }
+
         for path in &self.listeners.paths {
             for line in path.get_lines() {
                 ctx.draw(&line)

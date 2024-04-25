@@ -41,6 +41,7 @@ impl<B: Backend> App<B> {
             config.pose_stamped_topics,
             config.pose_array_topics,
             config.pointcloud2_topics,
+            config.polygon_stamped_topics,
             config.path_topics,
         );
         let viewport = Rc::new(RefCell::new(app_modes::viewport::Viewport::new(

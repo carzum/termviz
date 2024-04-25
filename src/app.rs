@@ -103,29 +103,34 @@ impl<B: Backend> App<B> {
                 self.show_help = false;
             }
         }
-        let mut new_mode = 100;
+        let mut maybe_new_mode = None;
         match input.trim().parse::<usize>() {
             Ok(mode) => {
-                new_mode = mode;
+                maybe_new_mode = Some(mode);
             }
             Err(_e) => match input.as_str() {
-                app_modes::input::MODE_1 => new_mode = 1,
-                app_modes::input::MODE_2 => new_mode = 2,
-                app_modes::input::MODE_3 => new_mode = 3,
-                app_modes::input::MODE_4 => new_mode = 4,
-                app_modes::input::MODE_5 => new_mode = 5,
-                app_modes::input::MODE_6 => new_mode = 6,
-                app_modes::input::MODE_7 => new_mode = 7,
-                app_modes::input::MODE_8 => new_mode = 8,
-                app_modes::input::MODE_9 => new_mode = 9,
+                app_modes::input::MODE_1 => maybe_new_mode = Some(1),
+                app_modes::input::MODE_2 => maybe_new_mode = Some(2),
+                app_modes::input::MODE_3 => maybe_new_mode = Some(3),
+                app_modes::input::MODE_4 => maybe_new_mode = Some(4),
+                app_modes::input::MODE_5 => maybe_new_mode = Some(5),
+                app_modes::input::MODE_6 => maybe_new_mode = Some(6),
+                app_modes::input::MODE_7 => maybe_new_mode = Some(7),
+                app_modes::input::MODE_8 => maybe_new_mode = Some(8),
+                app_modes::input::MODE_9 => maybe_new_mode = Some(9),
                 _ => {}
             },
         }
-        if new_mode != 100 && new_mode != self.mode && new_mode <= self.app_modes.len() {
-            self.app_modes[self.mode - 1].reset();
-            self.mode = new_mode;
-            self.app_modes[self.mode - 1].reset();
-            return;
+        match maybe_new_mode {
+            Some(new_mode) => {
+                if new_mode != self.mode && (1..self.app_modes.len() + 1).contains(&new_mode) {
+                    self.app_modes[self.mode - 1].reset();
+                    self.mode = new_mode;
+                    self.app_modes[self.mode - 1].reset();
+                    return;
+                }
+            }
+            None => {}
         }
         if self.show_help {
             return;

@@ -4,7 +4,8 @@
 use crate::app_modes::{input, AppMode, Drawable};
 use crate::footprint::get_current_footprint;
 use crate::listeners::Listeners;
-use crate::transformation;
+use crate::transformation::{self, iso2d_to_ros};
+use nalgebra::Isometry2;
 use std::sync::Arc;
 use tui::backend::Backend;
 use tui::layout::{Constraint, Layout};
@@ -245,14 +246,20 @@ impl UseViewport for Viewport {
         }
 
         ctx.layer();
-        let base_link_pose = self
-            .tf_listener
-            .lookup_transform(&self.static_frame, &self.robot_frame, rosrust::Time::new())
-            .unwrap()
-            .transform;
-        get_current_footprint(&base_link_pose, &self.footprint);
+        let base_link_pose = self.tf_listener.lookup_transform(
+            &self.static_frame,
+            &self.robot_frame,
+            rosrust::Time::new(),
+        );
 
-        for elem in get_current_footprint(&base_link_pose, &self.footprint) {
+        let robot_pose = if base_link_pose.is_ok() {
+            base_link_pose.unwrap().transform
+        } else {
+            iso2d_to_ros(&Isometry2::identity())
+        };
+        get_current_footprint(&robot_pose, &self.footprint);
+
+        for elem in get_current_footprint(&robot_pose, &self.footprint) {
             ctx.draw(&Line {
                 x1: elem.0,
                 y1: elem.1,
@@ -262,7 +269,7 @@ impl UseViewport for Viewport {
             });
         }
 
-        for line in Viewport::get_frame_lines(&base_link_pose, self.axis_length) {
+        for line in Viewport::get_frame_lines(&robot_pose, self.axis_length) {
             ctx.draw(&line);
         }
 

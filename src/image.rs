@@ -1,6 +1,6 @@
 use crate::config::ImageListenerConfig;
 use byteorder::{ByteOrder, LittleEndian};
-use image::{imageops, DynamicImage, ImageBuffer, RgbaImage};
+use image::{imageops, DynamicImage, ImageBuffer, Rgb, RgbImage, RgbaImage};
 use rosrust;
 use rosrust_msg;
 use std::sync::{Arc, RwLock};
@@ -10,14 +10,26 @@ fn remap_u8(val: f64, min_val: f64, max_val: f64) -> u8 {
     ((val - min_val) * (u8::MAX as f64 / (max_val - min_val))) as u8
 }
 
+fn bgr2rgb(bgr_img: &RgbImage) -> RgbImage {
+    ImageBuffer::from_fn(bgr_img.width(), bgr_img.height(), |x, y| {
+        let bgr = bgr_img.get_pixel(x, y);
+        Rgb([bgr[2], bgr[1], bgr[0]])
+    })
+}
+
 fn read_img_msg(img_msg: rosrust_msg::sensor_msgs::Image) -> DynamicImage {
     match img_msg.encoding.as_ref() {
         "8UC1" | "mono8" => DynamicImage::ImageLuma8(
             ImageBuffer::from_raw(img_msg.width, img_msg.height, img_msg.data).unwrap(),
         ),
-        "8UC3" | "rgb8" => DynamicImage::ImageRgb8(
-            ImageBuffer::from_raw(img_msg.width, img_msg.height, img_msg.data).unwrap(),
-        ),
+        "8UC3" | "rgb8" | "bgr8" => {
+            let mut img: RgbImage =
+                ImageBuffer::from_raw(img_msg.width, img_msg.height, img_msg.data).unwrap();
+            if img_msg.encoding == "bgr8" {
+                img = bgr2rgb(&img)
+            }
+            DynamicImage::ImageRgb8(img)
+        }
         "16UC1" | "mono16" => DynamicImage::ImageLuma8(
             ImageBuffer::from_raw(img_msg.width, img_msg.height, read_u16(&img_msg.data)).unwrap(),
         ),

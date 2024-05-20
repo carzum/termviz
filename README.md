@@ -62,6 +62,20 @@ This mode allows to visualize images received on the topics specified under `ima
 The topic manager can add and remove topics int the termviz config. When confirmed the config will be stored and termviz must be restarted.
 Only supported topics are displayed, topics can only be in the active or in the available list.
 
+### TF Tree View
+
+Similar to rqt_tf_tree, it displays the TF tree and allows users to interactively echo any two arbitrary frames.
+
+#### Prerequisites
+
+Ensure the tf2_frames service is available by running the [tf_service server](https://github.com/magazino/tf_service) with the --frames_service argument:
+
+```sh
+rosrun tf_service server --frames_service
+```
+**Note**: tf service server is required since [rustros_tf](https://github.com/arjo129/rustros_tf) doesn't advertise by default tf2_frames service like C++/Python versions do.
+
+
 ## Default config
 
 Here is the commented default config file:
@@ -148,6 +162,7 @@ teleop:                        # Parameters for the Teleoperate mode.
   increment_step: 0.1          # Step for increasing the velocity increment.
   cmd_vel_topic: cmd_vel       # Topic on which to publish the velocity commands.
   publish_cmd_vel_when_idle: true # If true keep publishing 0 velocities, only publish once otherwise
+tf_frames_service_name: /tf_service/tf2_frames
 ```
 
 ## Maintainers

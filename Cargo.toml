@@ -25,6 +25,7 @@ rosrust = "0.9.11"
 rosrust_msg = "0.1.7"
 rustros_tf = { git = "https://github.com/maximaerz/rustros_tf" }
 serde = { version = "*", features = ["derive"] }
+serde_yaml = "0.9"
 serde_derive = "*"
 strum = "0.23"
 strum_macros = "0.23"
@@ -32,6 +33,7 @@ timer = "0.1.6"
 tokio = { version = "1.16", features = ["full"] }
 tui = "0.18.0"
 tui-image = { git = "https://github.com/arraypad/tui-image", version = "*" }
+tui-tree-widget = { git = "https://github.com/AlexKaravaev/tui-rs-tree-widget", branch = "alex/v0.9.0-pub-text" }
 
 [dependencies.confy]
 version = "0.5.0"

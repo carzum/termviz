@@ -5,7 +5,8 @@ use crate::app_modes::{input, AppMode, Drawable};
 use crate::footprint::get_current_footprint;
 use crate::listeners::Listeners;
 use crate::transformation;
-use std::sync::Arc;
+use nalgebra::{Isometry3, Translation3, Quaternion, UnitQuaternion};
+use std::sync::{Arc, RwLock};
 use tui::backend::Backend;
 use tui::layout::{Constraint, Layout};
 use tui::style::{Color, Modifier, Style};
@@ -71,8 +72,10 @@ pub struct Viewport {
     pub axis_length: f64,
     pub zoom: f64,
     pub zoom_factor: f64,
+    pub orbit_step: f64,
     pub terminal_size: (u16, u16),
     pub listeners: Listeners, // TODO split properly config and listeners
+    pub view: Arc<RwLock<Isometry3<f64>>>,
 }
 
 impl Viewport {
@@ -86,6 +89,7 @@ impl Viewport {
         zoom_factor: f64,
         listeners: Listeners,
         terminal_size: (u16, u16),
+        view: Arc<RwLock<Isometry3<f64>>>,
     ) -> Viewport {
         Viewport {
             static_frame: static_frame.clone(),
@@ -94,10 +98,12 @@ impl Viewport {
             initial_bounds: initial_bounds.clone(),
             zoom: 1.0,
             zoom_factor: zoom_factor,
+            orbit_step: 0.1,
             footprint: footprint.clone(),
             axis_length: axis_length,
             listeners: listeners,
             terminal_size: terminal_size,
+            view: view,
         }
     }
     pub fn get_frame_lines(
@@ -130,8 +136,12 @@ impl AppMode for Viewport {
     fn reset(&mut self) {}
     fn handle_input(&mut self, input: &String) {
         match input.as_str() {
-            input::ZOOM_IN => self.zoom += self.zoom_factor,
+            // input::ZOOM_IN => self.zoom += self.zoom_factor,
             input::ZOOM_OUT => self.zoom -= self.zoom_factor,
+            input::ZOOM_IN => {
+                let mut view = self.view.write().unwrap();
+                *view *= Isometry3::from_parts(Translation3::default(), UnitQuaternion::from_euler_angles(self.orbit_step, 0., 0.));
+            }
             _ => return,
         }
     }
@@ -153,6 +163,10 @@ impl AppMode for Viewport {
             [
                 input::ZOOM_OUT.to_string(),
                 "Decreases the zoom.".to_string(),
+            ],
+            [
+                input::UP.to_string(),
+                "Rotate the Camera in an orbit upwards, increasing the roll".to_string(),
             ],
         ]
     }

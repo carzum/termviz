@@ -10,9 +10,10 @@ use crossterm::{
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use nalgebra::Isometry3;
 use std::io;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{RwLock, Arc};
 use tui::backend::Backend;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Alignment, Constraint, Direction, Layout};
@@ -31,6 +32,7 @@ pub struct App<B: Backend> {
 impl<B: Backend> App<B> {
     pub fn new(tf_listener: Arc<rustros_tf::TfListener>, config: TermvizConfig) -> App<B> {
         let config_copy = config.clone();
+        let view = Arc::new(RwLock::new(Isometry3::default()));
         let listeners = Listeners::new(
             tf_listener.clone(),
             config.fixed_frame.clone(),
@@ -42,6 +44,7 @@ impl<B: Backend> App<B> {
             config.pose_array_topics,
             config.pointcloud2_topics,
             config.path_topics,
+            view.clone(),
         );
         let viewport = Rc::new(RefCell::new(app_modes::viewport::Viewport::new(
             &config.fixed_frame,
@@ -53,6 +56,7 @@ impl<B: Backend> App<B> {
             config.zoom_factor,
             listeners,
             size().unwrap(),
+            view.clone(),
         )));
         let send_pose = Box::new(app_modes::send_pose::SendPose::new(
             &config.send_pose_topics,

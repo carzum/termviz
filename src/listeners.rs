@@ -1,3 +1,5 @@
+use nalgebra::Isometry3;
+
 use crate::config::{
     ListenerConfig, ListenerConfigColor, MapListenerConfig, PointCloud2ListenerConfig,
     PoseListenerConfig,
@@ -8,7 +10,7 @@ use crate::marker;
 use crate::pointcloud;
 use crate::pose;
 
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 pub struct Listeners {
     pub lasers: Vec<laser::LaserListener>,
@@ -18,6 +20,7 @@ pub struct Listeners {
     pub pose_array: Vec<pose::PoseArrayListener>,
     pub pointclouds: Vec<pointcloud::PointCloud2Listener>,
     pub paths: Vec<pose::PathListener>,
+    _view: Arc<RwLock<Isometry3<f64>>>
 }
 
 impl Listeners {
@@ -32,6 +35,7 @@ impl Listeners {
         pose_array_topics: Vec<PoseListenerConfig>,
         pointcloud2_topics: Vec<PointCloud2ListenerConfig>,
         path_topics: Vec<PoseListenerConfig>,
+        _view: Arc<RwLock<Isometry3<f64>>>,
     ) -> Listeners {
         let mut lasers: Vec<laser::LaserListener> = Vec::new();
         for laser_config in laser_topics {
@@ -39,6 +43,7 @@ impl Listeners {
                 laser_config,
                 tf_listener.clone(),
                 static_frame.clone(),
+                _view.clone(),
             ));
         }
 
@@ -89,6 +94,7 @@ impl Listeners {
             pose_array,
             pointclouds,
             paths,
+            _view,
         }
     }
 }

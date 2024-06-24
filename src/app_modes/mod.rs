@@ -4,6 +4,7 @@ pub mod image_view;
 pub mod send_pose;
 pub mod teleoperate;
 pub mod topic_managment;
+pub mod tf;
 pub mod viewport;
 
 use tui::backend::Backend;
@@ -35,6 +36,7 @@ pub mod input {
     pub const DECREMENT_STEP: &str = "Decrement step";
     pub const NEXT: &str = "Next";
     pub const PREVIOUS: &str = "Previous";
+    pub const UPDATE: &str = "Update";
     pub const SHOW_HELP: &str = "Show help";
     pub const UNMAPPED: &str = "Any other";
 }

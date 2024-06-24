@@ -60,16 +60,18 @@ impl<B: Backend> App<B> {
             viewport.clone(),
         ));
         let teleop = Box::new(app_modes::teleoperate::Teleoperate::new(
-            viewport,
+            viewport.clone(),
             config.teleop,
         ));
         let topic_manager = Box::new(app_modes::topic_managment::TopicManager::new(config_copy));
+        let tf_tree_view = Box::new(app_modes::tf::TfTreeView::new(viewport, config.tf_frames_service_name));
+
         let image_view = Box::new(app_modes::image_view::ImageView::new(config.image_topics));
         App {
             mode: 1,
             show_help: false,
             keymap: config.key_mapping,
-            app_modes: vec![send_pose, teleop, image_view, topic_manager],
+            app_modes: vec![send_pose, teleop, image_view, topic_manager, tf_tree_view],
         }
     }
 

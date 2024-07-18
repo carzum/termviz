@@ -62,6 +62,10 @@ This mode allows to visualize images received on the topics specified under `ima
 The topic manager can add and remove topics int the termviz config. When confirmed the config will be stored and termviz must be restarted.
 Only supported topics are displayed, topics can only be in the active or in the available list.
 
+### TF Tree View
+
+Similar to rqt_tf_tree, it displays the TF tree and allows users to interactively echo any two arbitrary frames.
+
 ## Default config
 
 Here is the commented default config file:

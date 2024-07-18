@@ -64,7 +64,7 @@ impl<B: Backend> App<B> {
             config.teleop,
         ));
         let topic_manager = Box::new(app_modes::topic_managment::TopicManager::new(config_copy));
-        let tf_tree_view = Box::new(app_modes::tf::TfTreeView::new(viewport, config.tf_frames_service_name));
+        let tf_tree_view = Box::new(app_modes::tf::TfTreeView::new(viewport));
 
         let image_view = Box::new(app_modes::image_view::ImageView::new(config.image_topics));
         App {

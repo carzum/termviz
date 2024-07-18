@@ -134,7 +134,6 @@ pub struct TermvizConfig {
     pub zoom_factor: f64,
     pub key_mapping: HashMap<String, String>,
     pub teleop: TeleopConfig,
-    pub tf_frames_service_name: String,
 }
 
 impl Default for TermvizConfig {
@@ -220,7 +219,6 @@ impl Default for TermvizConfig {
                 (input::MODE_3.to_string(), "i".to_string()),
             ]),
             teleop: TeleopConfig::default(),
-            tf_frames_service_name: "tf_service/tf2_frames".to_string(),
         }
     }
 }

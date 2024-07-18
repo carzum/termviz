@@ -1,13 +1,12 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::time;
 
 use crate::app_modes::viewport::Viewport as AppViewport;
 use crate::app_modes::{input, AppMode, BaseMode, Drawable};
 
 use nalgebra::geometry::{Quaternion, UnitQuaternion};
-use serde::Deserialize;
+use rustros_tf::Node;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout};
 use tui::style::{Color, Modifier, Style};
@@ -16,18 +15,6 @@ use tui::widgets::{Block, Borders, Paragraph, Wrap};
 use tui::Frame;
 use tui_tree_widget::{flatten, get_identifier_without_leaf, Tree, TreeItem, TreeState};
 
-/// Struct that represents tf node that is being returned by tf2_frames service
-#[derive(Debug, Deserialize, Clone)]
-struct Node {
-    parent: String,
-    #[allow(dead_code)]
-    broadcaster: String,
-    rate: f64,
-    most_recent_transform: f64,
-    oldest_transform: f64,
-    #[allow(dead_code)]
-    buffer_length: f64,
-}
 
 /// Struct that represents internal tree node with children
 #[derive(Debug)]
@@ -303,115 +290,60 @@ impl TransformationDetails {
 pub struct TfTreeView<'a> {
     nodes: HashMap<String, Node>,
     status_bar: String,
-    tf_client: Option<rosrust::Client<rosrust_msg::tf2_msgs::FrameGraph>>,
     tf_echo_details: Vec<Spans<'static>>,
-    tf_frames_service_name: String,
     tree: StatefulTree<'a>,
     updated_once: bool,
     viewport: Rc<RefCell<AppViewport>>,
 }
 
 impl<'a> TfTreeView<'a> {
-    const CONNECTION_ERROR_MSG: &'static str = "Can't establish connection to service";
+    const CONNECTION_ERROR_MSG: &'static str = "No frames available, check tf connection";
     const DEFAULT_MSG: &'static str = "Select frame to view its data";
 
     fn update_status_bar_for_error(&mut self) {
-        self.status_bar = format!(
-            "{} {}",
-            Self::CONNECTION_ERROR_MSG,
-            self.tf_frames_service_name
-        );
-    }
-
-    fn update_status_bar_for_selection(&mut self) {
-        self.status_bar = Self::DEFAULT_MSG.to_string();
+        self.status_bar = Self::CONNECTION_ERROR_MSG.to_string();
     }
 
     pub fn new(
         viewport: Rc<RefCell<AppViewport>>,
-        tf_frames_service_name: String,
     ) -> TfTreeView<'a> {
-        let mut updated_once = false;
-        let mut status_bar = format!("{} {}", Self::CONNECTION_ERROR_MSG, tf_frames_service_name);
-
-        let tf_client = if rosrust::wait_for_service(
-            tf_frames_service_name.as_str(),
-            Some(time::Duration::from_secs(1)),
-        )
-        .is_ok()
-        {
-            status_bar = Self::DEFAULT_MSG.to_string();
-            Some(
-                rosrust::client::<rosrust_msg::tf2_msgs::FrameGraph>(
-                    tf_frames_service_name.as_str(),
-                )
-                .unwrap(),
-            )
-        } else {
-            updated_once = true;
-            None
-        };
+        let updated_once = false;
+        let status_bar = Self::DEFAULT_MSG.to_string();
 
         TfTreeView {
             nodes: HashMap::default(),
             status_bar,
-            tf_client,
             tf_echo_details: vec![Spans::from(format!(
                 "Select frames with {} button to view transform",
                 input::CONFIRM
             ))],
-            tf_frames_service_name: tf_frames_service_name.clone(),
             tree: StatefulTree::with_items(vec![]),
             updated_once,
             viewport,
         }
     }
 
-    fn update_tf_client(&mut self) {
-        if self.tf_client.is_some() {
-            return;
+    /// Process tf2_frames service result and update tf tree
+    fn process_frame_data(&mut self) -> Result<(), &'static str> {
+        self.nodes = match self.viewport.borrow().tf_listener.buffer.read() {
+            Ok(buffer) => buffer.all_frames_as_map(),
+            Err(_) => return Err("No tf_listener"), 
+        };
+        let mut tree_items = Vec::new();
+
+        let roots = find_roots(&self.nodes);
+        for root in roots {
+            let tree_node = build_tree(&self.nodes, &root);
+            let tree_item = convert_to_tree_item(&tree_node);
+            tree_items.push(tree_item);
         }
 
-        if rosrust::wait_for_service(
-            &self.tf_frames_service_name,
-            Some(time::Duration::from_secs(1)),
-        )
-        .is_ok()
-        {
-            self.tf_client =
-                rosrust::client::<rosrust_msg::tf2_msgs::FrameGraph>(&self.tf_frames_service_name)
-                    .ok();
-            self.update_status_bar_for_selection();
-        } else {
+        self.tree = StatefulTree::with_items(tree_items);
+        if self.nodes.is_empty(){
             self.update_status_bar_for_error();
         }
-    }
-
-    /// Process tf2_frames service result and update tf tree
-    fn process_frame_data(&mut self) {
-        let frame_request = rosrust_msg::tf2_msgs::FrameGraphReq {};
-        let frame_response = match self.tf_client.as_ref().unwrap().req(&frame_request) {
-            Ok(res) => res.unwrap(),
-            Err(_) => return self.update_status_bar_for_error(),
-        };
-
-        match serde_yaml::from_str::<HashMap<String, Node>>(frame_response.frame_yaml.as_str()) {
-            Ok(nodes) => {
-                self.nodes = nodes;
-                let mut tree_items = Vec::new();
-
-                let roots = find_roots(&self.nodes);
-                for root in roots {
-                    let tree_node = build_tree(&self.nodes, &root);
-                    let tree_item = convert_to_tree_item(&tree_node);
-                    tree_items.push(tree_item);
-                }
-
-                self.tree = StatefulTree::with_items(tree_items);
-                self.updated_once = true;
-            }
-            Err(_) => self.status_bar = "Failed to parse frame data".to_string(),
-        }
+        self.updated_once = true;
+        Ok(())
     }
 
     /// Get transform between 'selected' and picked frame and store for display
@@ -459,13 +391,9 @@ impl<'a> AppMode for TfTreeView<'a> {
             return;
         }
 
-        self.update_tf_client();
-
-        if self.tf_client.is_none() {
-            return;
+        if let Err(_) = self.process_frame_data() {
+            self.update_status_bar_for_error();
         }
-
-        self.process_frame_data();
     }
 
     fn reset(&mut self) {}
@@ -481,7 +409,9 @@ impl<'a> AppMode for TfTreeView<'a> {
             input::LEFT => self.tree.close(),
             input::RIGHT => self.tree.open(),
             input::UPDATE => {
-                self.run();
+                if let Err(_) = self.process_frame_data() {
+                    self.update_status_bar_for_error();
+                }
             }
             input::CONFIRM => self.echo_selected_and_picked(),
             _ => (),

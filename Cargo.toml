@@ -28,7 +28,6 @@ rosrust_msg = "0.1.7"
 rustros_tf = { git = "https://github.com/AlexKaravaev/rustros_tf", branch = "master" }
 
 serde = { version = "*", features = ["derive"] }
-serde_yaml = "0.9"
 serde_derive = "*"
 strum = "0.23"
 strum_macros = "0.23"

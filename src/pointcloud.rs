@@ -1,6 +1,6 @@
 use crate::config::PointCloud2ListenerConfig;
 use byteorder::{ByteOrder, LittleEndian};
-use colorgrad;
+use colorgrad::Gradient;
 use std::sync::{Arc, RwLock};
 
 use nalgebra::geometry::Point3;
@@ -81,9 +81,11 @@ pub fn colorize_from_rgb(
 }
 
 pub fn colorize_points(mut points: Vec<ColoredPoint>, min_z: f64, max_z: f64) -> Vec<ColoredPoint> {
-    let grad = colorgrad::turbo();
+    let grad = colorgrad::preset::turbo();
     for pt in points.iter_mut() {
-        let c = grad.at((pt.point.z - min_z) / (max_z - min_z)).to_rgba8();
+        let c = grad
+            .at((pt.point.z - min_z) as f32 / (max_z - min_z) as f32)
+            .to_rgba8();
         pt.color = Color::Rgb(c[0], c[1], c[2]);
     }
     points

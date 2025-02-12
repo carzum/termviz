@@ -1,11 +1,9 @@
-use crate::{
-    config::ListenerConfigColor, transformation::ros_transform_to_isometry,
-};
+use crate::{config::ListenerConfigColor, transformation::ros_transform_to_isometry};
 use nalgebra::Point3;
 use rustros_tf;
 use std::sync::{Arc, RwLock};
-use tui::widgets::canvas::Line;
 use tui::style::Color;
+use tui::widgets::canvas::Line;
 
 pub fn read_points(msg: &rosrust_msg::geometry_msgs::Polygon) -> Vec<Point3<f64>> {
     let n_pts = msg.points.len();

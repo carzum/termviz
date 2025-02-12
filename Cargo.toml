@@ -9,13 +9,13 @@ description = "ROS visualization on the terminal"
 
 [dependencies]
 approx = "0.5.1"
-byteorder = "*"
+byteorder = "1.5.0"
 chrono = "0.2.25"
-clap = "*"
-colored = "*"
-colorgrad = "*"
+clap = "4.5.29"
+colored = "2.2.0"
+colorgrad = "0.7.0"
 crossterm = { version = '0.23', features = ["event-stream"] }
-dialoguer = "*"
+dialoguer = "0.11.0"
 futures = "0.3"
 futures-timer = "3.0"
 image = "0.24"  # TODO: tui-image (see below) doesn't allow newer versions.
@@ -24,8 +24,8 @@ rand = "0.8.5"
 rosrust = "0.9.11"
 rosrust_msg = "0.1.7"
 rustros_tf = { git = "https://github.com/maximaerz/rustros_tf" }
-serde = { version = "*", features = ["derive"] }
-serde_derive = "*"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_derive = "1.0.217"
 strum = "0.23"
 strum_macros = "0.23"
 timer = "0.1.6"

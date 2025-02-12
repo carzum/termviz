@@ -124,6 +124,7 @@ pub struct TermvizConfig {
     pub marker_array_topics: Vec<ListenerConfig>,
     pub path_topics: Vec<PoseListenerConfig>,
     pub pointcloud2_topics: Vec<PointCloud2ListenerConfig>,
+    #[serde(default)]
     pub polygon_stamped_topics: Vec<ListenerConfigColor>,
     pub pose_array_topics: Vec<PoseListenerConfig>,
     pub pose_stamped_topics: Vec<PoseListenerConfig>,

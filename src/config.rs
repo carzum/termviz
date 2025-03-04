@@ -111,6 +111,7 @@ pub struct TeleopConfig {
     pub cmd_vel_topic: String,
     pub publish_cmd_vel_when_idle: bool,
     pub mode: TeleopMode,
+    pub max_save_vel: f64,
 }
 
 impl Default for TeleopConfig {
@@ -121,6 +122,7 @@ impl Default for TeleopConfig {
             cmd_vel_topic: "cmd_vel".to_string(),
             publish_cmd_vel_when_idle: true,
             mode: TeleopMode::Classic,
+            max_save_vel: 0.2,
         }
     }
 }

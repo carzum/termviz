@@ -17,6 +17,7 @@ pub struct Teleoperate {
     publish_cmd_vel_when_idle: bool,
     has_published_zero_once: bool,
     mode: TeleopMode,
+    max_save_vel: f64,
 }
 
 pub struct Velocities {
@@ -51,6 +52,7 @@ impl Teleoperate {
             publish_cmd_vel_when_idle: config.publish_cmd_vel_when_idle,
             has_published_zero_once: true, // Initialize to true so the robot is not stopped when entering the mode
             mode: config.mode,
+            max_save_vel: config.max_save_vel,
         }
     }
 }
@@ -89,29 +91,33 @@ impl AppMode for Teleoperate {
         } else {
             match input.as_str() {
                 input::UP => {
-                    let new_vel = (self.current_velocities.x + 2 as f64 * self.increment).min(1.5);
+                    let new_vel = (self.current_velocities.x + 2 as f64 * self.increment)
+                        .min(self.max_save_vel);
                     self.current_velocities.x = new_vel;
                 }
                 input::DOWN => {
-                    let new_vel = (self.current_velocities.x - 2 as f64 * self.increment).max(-1.5);
+                    let new_vel = (self.current_velocities.x - 2 as f64 * self.increment)
+                        .max(-self.max_save_vel);
                     self.current_velocities.x = new_vel;
                 }
                 input::LEFT => {
-                    let new_vel = (self.current_velocities.y + 2 as f64 * self.increment).min(1.5);
+                    let new_vel = (self.current_velocities.y + 2 as f64 * self.increment)
+                        .min(self.max_save_vel);
                     self.current_velocities.y = new_vel;
                 }
                 input::RIGHT => {
-                    let new_vel = (self.current_velocities.y - 2 as f64 * self.increment).max(-1.5);
+                    let new_vel = (self.current_velocities.y - 2 as f64 * self.increment)
+                        .max(-self.max_save_vel);
                     self.current_velocities.y = new_vel;
                 }
                 input::ROTATE_LEFT => {
-                    let new_vel =
-                        (self.current_velocities.theta + 2 as f64 * self.increment).min(1.5);
+                    let new_vel = (self.current_velocities.theta + 2 as f64 * self.increment)
+                        .min(self.max_save_vel);
                     self.current_velocities.theta = new_vel;
                 }
                 input::ROTATE_RIGHT => {
-                    let new_vel =
-                        (self.current_velocities.theta - 2 as f64 * self.increment).max(-1.5);
+                    let new_vel = (self.current_velocities.theta - 2 as f64 * self.increment)
+                        .max(-self.max_save_vel);
                     self.current_velocities.theta = new_vel;
                 }
                 input::INCREMENT_STEP => self.increment += self.increment_step,

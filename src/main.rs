@@ -61,6 +61,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map(|(v, k)| match k.as_str() {
             "Enter" => (KeyCode::Enter, v.clone()),
             "Esc" => (KeyCode::Esc, v.clone()),
+            "Space" => (KeyCode::Char(' '), v.clone()),
             _ => (KeyCode::Char(k.chars().next().unwrap()), v.clone()),
         })
         .collect();
@@ -125,9 +126,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let mut delay = Delay::new(rate).fuse();
 
         select! {
-            _ = delay => {
-                running_app.run();
-            },
+            _ = delay => (),
             maybe_event = event => {
                 match maybe_event {
                     Some(Ok(event)) => {
@@ -149,6 +148,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         };
+        running_app.run();
         terminal.draw(|f| {
             running_app.draw(f);
         })?;

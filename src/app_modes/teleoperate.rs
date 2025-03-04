@@ -1,6 +1,6 @@
 use crate::app_modes::viewport::{UseViewport, Viewport};
 use crate::app_modes::{input, AppMode, BaseMode};
-use crate::config::TeleopConfig;
+use crate::config::{TeleopConfig, TeleopMode};
 use rosrust;
 use rosrust_msg;
 use std::cell::RefCell;
@@ -16,12 +16,22 @@ pub struct Teleoperate {
     increment_step: f64,
     publish_cmd_vel_when_idle: bool,
     has_published_zero_once: bool,
+    mode: TeleopMode,
 }
 
 pub struct Velocities {
     x: f64,
     y: f64,
     theta: f64,
+}
+
+fn move_towards_zero(mut num: f64, increment: f64) -> f64 {
+    if num > 0.0 {
+        num = (num - increment).max(0.0);
+    } else {
+        num = (num + increment).min(0.0);
+    }
+    num
 }
 
 impl Teleoperate {
@@ -40,6 +50,7 @@ impl Teleoperate {
             increment_step: config.increment_step,
             publish_cmd_vel_when_idle: config.publish_cmd_vel_when_idle,
             has_published_zero_once: true, // Initialize to true so the robot is not stopped when entering the mode
+            mode: config.mode
         }
     }
 }
@@ -59,20 +70,57 @@ impl Teleoperate {
 impl AppMode for Teleoperate {
     fn handle_input(&mut self, input: &String) {
         self.viewport.borrow_mut().handle_input(input);
-        match input.as_str() {
-            input::UP => self.current_velocities.x += 1 as f64 * self.increment,
-            input::DOWN => self.current_velocities.x += -1 as f64 * self.increment,
-            input::LEFT => self.current_velocities.y += 1 as f64 * self.increment,
-            input::RIGHT => self.current_velocities.y -= 1 as f64 * self.increment,
-            input::ROTATE_LEFT => self.current_velocities.theta += 1 as f64 * self.increment,
-            input::ROTATE_RIGHT => self.current_velocities.theta += -1 as f64 * self.increment,
-            input::INCREMENT_STEP => self.increment += self.increment_step,
-            input::DECREMENT_STEP => {
-                self.increment = self
-                    .increment_step
-                    .max(self.increment - self.increment_step)
+        if self.mode == TeleopMode::Classic {
+            match input.as_str() {
+                input::UP => self.current_velocities.x += 1 as f64 * self.increment,
+                input::DOWN => self.current_velocities.x += -1 as f64 * self.increment,
+                input::LEFT => self.current_velocities.y += 1 as f64 * self.increment,
+                input::RIGHT => self.current_velocities.y -= 1 as f64 * self.increment,
+                input::ROTATE_LEFT => self.current_velocities.theta += 1 as f64 * self.increment,
+                input::ROTATE_RIGHT => self.current_velocities.theta += -1 as f64 * self.increment,
+                input::INCREMENT_STEP => self.increment += self.increment_step,
+                input::DECREMENT_STEP => {
+                    self.increment = self
+                        .increment_step
+                        .max(self.increment - self.increment_step)
+                }
+                _ => self.reset(),
             }
-            _ => self.reset(),
+        }
+        else {
+            match input.as_str() {
+                input::UP => {
+                    let new_vel = (self.current_velocities.x + 2 as f64 * self.increment).min(1.5);
+                    self.current_velocities.x = new_vel;
+                }
+                input::DOWN => {
+                    let new_vel = (self.current_velocities.x - 2 as f64 * self.increment).max(-1.5);
+                    self.current_velocities.x = new_vel;
+                }
+                input::LEFT => {
+                    let new_vel = (self.current_velocities.y + 2 as f64 * self.increment).min(1.5);
+                    self.current_velocities.y = new_vel;
+                }
+                input::RIGHT => {
+                    let new_vel = (self.current_velocities.y - 2 as f64 * self.increment).max(-1.5);
+                    self.current_velocities.y = new_vel;
+                }
+                input::ROTATE_LEFT => {
+                    let new_vel = (self.current_velocities.theta + 2 as f64 * self.increment).min(1.5);
+                    self.current_velocities.theta = new_vel;
+                }
+                input::ROTATE_RIGHT => {
+                    let new_vel = (self.current_velocities.theta - 2 as f64 * self.increment).max(-1.5);
+                    self.current_velocities.theta = new_vel;
+                }
+                input::INCREMENT_STEP => self.increment += self.increment_step,
+                input::DECREMENT_STEP => {
+                    self.increment = self
+                        .increment_step
+                        .max(self.increment - self.increment_step)
+                }
+                _ => self.reset(),
+            }
         }
     }
 
@@ -80,6 +128,11 @@ impl AppMode for Teleoperate {
         // If the velocity is reset to 0 only publish it once
         // this prevents the robot from being blocked if the
         // app mode is not closed
+        if self.mode == TeleopMode::Safe {
+            self.current_velocities.x = move_towards_zero(self.current_velocities.x, self.increment);
+            self.current_velocities.y = move_towards_zero(self.current_velocities.y, self.increment);
+            self.current_velocities.theta = move_towards_zero(self.current_velocities.theta, self.increment);
+        };
         if !self.publish_cmd_vel_when_idle
             && self.current_velocities.x == 0 as f64
             && self.current_velocities.y == 0 as f64
@@ -94,7 +147,7 @@ impl AppMode for Teleoperate {
             // Otherwise just publish
             self.has_published_zero_once = false;
             self.publish_current_cmd_val()
-        }
+        };
     }
 
     fn reset(&mut self) {
@@ -111,8 +164,11 @@ impl AppMode for Teleoperate {
     }
 
     fn get_description(&self) -> Vec<String> {
-        vec!["This mode allows to teleoperate the robot by publishing velocity commands on the given topic.".to_string(),
-        "The viewport is centered on the robot.".to_string()]
+        vec![
+            "This mode allows to teleoperate the robot by publishing velocity commands on the given topic.".to_string(),
+            "The viewport is centered on the robot.".to_string(),
+            "Two modes are possible: Classic and Safe, check the config for more details".to_string(),
+        ]
     }
 
     fn get_keymap(&self) -> Vec<[String; 2]> {
@@ -173,6 +229,9 @@ impl UseViewport for Teleoperate {
     }
 
     fn info(&self) -> String {
-        format!("Velocity step: {:.2}", &self.increment)
+        format!(
+            "Velocity step: {:.2}, Mode: {}, Velocities: x: {:.2}, y: {:.2}, theta: {:.2}",
+            &self.increment, self.mode, self.current_velocities.x, self.current_velocities.y, self.current_velocities.theta,
+        )
     }
 }

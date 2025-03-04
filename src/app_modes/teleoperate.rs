@@ -50,7 +50,7 @@ impl Teleoperate {
             increment_step: config.increment_step,
             publish_cmd_vel_when_idle: config.publish_cmd_vel_when_idle,
             has_published_zero_once: true, // Initialize to true so the robot is not stopped when entering the mode
-            mode: config.mode
+            mode: config.mode,
         }
     }
 }
@@ -86,8 +86,7 @@ impl AppMode for Teleoperate {
                 }
                 _ => self.reset(),
             }
-        }
-        else {
+        } else {
             match input.as_str() {
                 input::UP => {
                     let new_vel = (self.current_velocities.x + 2 as f64 * self.increment).min(1.5);
@@ -106,11 +105,13 @@ impl AppMode for Teleoperate {
                     self.current_velocities.y = new_vel;
                 }
                 input::ROTATE_LEFT => {
-                    let new_vel = (self.current_velocities.theta + 2 as f64 * self.increment).min(1.5);
+                    let new_vel =
+                        (self.current_velocities.theta + 2 as f64 * self.increment).min(1.5);
                     self.current_velocities.theta = new_vel;
                 }
                 input::ROTATE_RIGHT => {
-                    let new_vel = (self.current_velocities.theta - 2 as f64 * self.increment).max(-1.5);
+                    let new_vel =
+                        (self.current_velocities.theta - 2 as f64 * self.increment).max(-1.5);
                     self.current_velocities.theta = new_vel;
                 }
                 input::INCREMENT_STEP => self.increment += self.increment_step,
@@ -129,9 +130,12 @@ impl AppMode for Teleoperate {
         // this prevents the robot from being blocked if the
         // app mode is not closed
         if self.mode == TeleopMode::Safe {
-            self.current_velocities.x = move_towards_zero(self.current_velocities.x, self.increment);
-            self.current_velocities.y = move_towards_zero(self.current_velocities.y, self.increment);
-            self.current_velocities.theta = move_towards_zero(self.current_velocities.theta, self.increment);
+            self.current_velocities.x =
+                move_towards_zero(self.current_velocities.x, self.increment);
+            self.current_velocities.y =
+                move_towards_zero(self.current_velocities.y, self.increment);
+            self.current_velocities.theta =
+                move_towards_zero(self.current_velocities.theta, self.increment);
         };
         if !self.publish_cmd_vel_when_idle
             && self.current_velocities.x == 0 as f64
@@ -231,7 +235,11 @@ impl UseViewport for Teleoperate {
     fn info(&self) -> String {
         format!(
             "Velocity step: {:.2}, Mode: {}, Velocities: x: {:.2}, y: {:.2}, theta: {:.2}",
-            &self.increment, self.mode, self.current_velocities.x, self.current_velocities.y, self.current_velocities.theta,
+            &self.increment,
+            self.mode,
+            self.current_velocities.x,
+            self.current_velocities.y,
+            self.current_velocities.theta,
         )
     }
 }

@@ -1,11 +1,11 @@
 use crate::app_modes::input;
 use confy;
 use serde::{Deserialize, Serialize};
-use strum_macros::Display;
 use std::collections::HashMap;
 use std::io;
 use std::io::Write;
 use std::path::Path;
+use strum_macros::Display;
 use tui::style::Color as TuiColor;
 
 fn default_int() -> i64 {
@@ -94,7 +94,6 @@ pub struct MapListenerConfig {
     #[serde(default = "default_map_threshold")]
     pub threshold: i8,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Display)]
 pub enum TeleopMode {

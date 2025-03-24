@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::io;
 use std::io::Write;
 use std::path::Path;
+use strum_macros::Display;
 use tui::style::Color as TuiColor;
 
 fn default_int() -> i64 {
@@ -94,12 +95,23 @@ pub struct MapListenerConfig {
     pub threshold: i8,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Display)]
+pub enum TeleopMode {
+    // Node will keep speed button press only increment decrement
+    Classic,
+    // Speed will be reduced every iteration by one increment
+    // To keep driving a button needs to be pressed every increment
+    Safe,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TeleopConfig {
     pub default_increment: f64,
     pub increment_step: f64,
     pub cmd_vel_topic: String,
     pub publish_cmd_vel_when_idle: bool,
+    pub mode: TeleopMode,
+    pub max_vel: f64,
 }
 
 impl Default for TeleopConfig {
@@ -109,6 +121,8 @@ impl Default for TeleopConfig {
             increment_step: 0.1,
             cmd_vel_topic: "cmd_vel".to_string(),
             publish_cmd_vel_when_idle: true,
+            mode: TeleopMode::Classic,
+            max_vel: 0.2,
         }
     }
 }

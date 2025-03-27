@@ -11,7 +11,6 @@ use rosrust;
 use rustros_tf;
 
 pub struct PointCloud2Listener {
-    pub config: PointCloud2ListenerConfig,
     pub points: Arc<RwLock<Vec<ColoredPoint>>>,
     _tf_listener: Arc<rustros_tf::TfListener>,
     _static_frame: String,
@@ -146,7 +145,6 @@ impl PointCloud2Listener {
         .unwrap();
 
         PointCloud2Listener {
-            config,
             points: occ_points,
             _tf_listener: tf_listener,
             _static_frame: static_frame.to_string(),

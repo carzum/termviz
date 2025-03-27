@@ -20,6 +20,10 @@ fn default_pose_length() -> f64 {
     0.2
 }
 
+const fn default_teleop_max_vel() -> f64 {
+    0.2
+}
+
 fn color_white() -> Color {
     Color {
         r: 255,
@@ -95,12 +99,13 @@ pub struct MapListenerConfig {
     pub threshold: i8,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Display)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq, Eq, Display)]
 pub enum TeleopMode {
     // Node will keep speed button press only increment decrement
     Classic,
     // Speed will be reduced every iteration by one increment
     // To keep driving a button needs to be pressed every increment
+    #[default]
     Safe,
 }
 
@@ -110,7 +115,9 @@ pub struct TeleopConfig {
     pub increment_step: f64,
     pub cmd_vel_topic: String,
     pub publish_cmd_vel_when_idle: bool,
+    #[serde(default)]
     pub mode: TeleopMode,
+    #[serde(default = "default_teleop_max_vel")]
     pub max_vel: f64,
 }
 

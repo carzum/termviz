@@ -128,7 +128,7 @@ impl Default for TeleopConfig {
             increment_step: 0.1,
             cmd_vel_topic: "cmd_vel".to_string(),
             publish_cmd_vel_when_idle: true,
-            mode: TeleopMode::Classic,
+            mode: TeleopMode::default(),
             max_vel: 0.2,
         }
     }

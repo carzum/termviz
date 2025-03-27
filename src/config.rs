@@ -2,11 +2,11 @@ use crate::app_modes::input;
 use confy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io;
-use std::io::Write;
-use std::path::Path;
+use std::path::PathBuf;
 use strum_macros::Display;
 use tui::style::Color as TuiColor;
+
+const DEFAULT_PATH: &str = "/etc/termviz/termviz.yml";
 
 const fn default_int() -> i64 {
     0
@@ -244,48 +244,37 @@ impl Default for TermvizConfig {
     }
 }
 
-pub fn ask_store() -> bool {
-    let mut x = String::with_capacity(5);
-    print!("Store default config? (y|N): ");
-    let _ = io::stdout().flush();
-    io::stdin().read_line(&mut x).expect("Error reading input");
-    let x = x.strip_suffix("\n").unwrap();
-    match x.to_lowercase().as_str() {
-        "y" | "yes" => true,
-        _ => false,
-    }
-}
-
-pub fn get_config(config_path: Option<&String>) -> Result<TermvizConfig, confy::ConfyError> {
+/// Loads the config with the following priority:
+/// 1. from a custom path, if provided;
+/// 2. from the default user config path, if it exists;
+/// 3. from the default global config path, if it exists;
+/// 4. or with default values.
+pub fn get_config(custom_path: Option<&PathBuf>) -> Result<TermvizConfig, confy::ConfyError> {
+    let default_path = PathBuf::from(DEFAULT_PATH);
     let user_path = confy::get_configuration_file_path("termviz", "termviz")?;
 
-    // decide on which config path to load
-    let load_config_path = if config_path.is_some() {
-        // config path provided by command line arg
-        Path::new(config_path.unwrap())
-    } else if user_path.as_path().exists() {
-        // use user config if it exists
-        user_path.as_path()
+    let load_config_path = custom_path.unwrap_or_else(|| {
+        if user_path.exists() {
+            &user_path
+        } else {
+            &default_path
+        }
+    });
+
+    let cfg = if load_config_path.exists() {
+        println!("Loading config from: {:?}", load_config_path);
+        confy::load_path(&load_config_path)?
     } else {
-        // fallback to system config
-        Path::new("/etc/termviz/termviz.yml")
+        println!("No config found at {:?}, using defaults.", load_config_path);
+        TermvizConfig::default()
     };
 
-    let mut cfg = TermvizConfig::default();
-    if load_config_path.exists() {
-        println!("Loading config from: {:?}", load_config_path);
-        cfg = confy::load_path(load_config_path)?;
-    } else {
-        // no config found, generate default
-        println!("No config found, using default");
-        let store = ask_store();
-        if store {
-            let res = confy::store("termviz", "termviz", &cfg);
-            match res {
-                Ok(_) => println!("Stored default config at {:?}", user_path),
-                Err(e) => println!("Error storing default config: {:?}", e),
-            }
+    // Always update user config, unless a custom path was used.
+    if custom_path.is_none() {
+        match confy::store_path(&user_path.as_path(), &cfg) {
+            Ok(_) => println!("Updated {:?}", user_path),
+            Err(e) => println!("Error updating config at user path: {:?}", e),
         }
-    };
+    }
     Ok(cfg)
 }

@@ -8,15 +8,15 @@ use std::path::Path;
 use strum_macros::Display;
 use tui::style::Color as TuiColor;
 
-fn default_int() -> i64 {
+const fn default_int() -> i64 {
     0
 }
 
-fn default_map_threshold() -> i8 {
+const fn default_map_threshold() -> i8 {
     1
 }
 
-fn default_pose_length() -> f64 {
+const fn default_pose_length() -> f64 {
     0.2
 }
 
@@ -24,7 +24,7 @@ const fn default_teleop_max_vel() -> f64 {
     0.2
 }
 
-fn color_white() -> Color {
+const fn color_white() -> Color {
     Color {
         r: 255,
         g: 255,
@@ -32,7 +32,7 @@ fn color_white() -> Color {
     }
 }
 
-fn color_red() -> Color {
+const fn color_red() -> Color {
     Color { r: 255, g: 0, b: 0 }
 }
 

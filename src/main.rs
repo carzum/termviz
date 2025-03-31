@@ -14,6 +14,7 @@ mod transformation;
 use futures::{future::FutureExt, select, StreamExt};
 use futures_timer::Delay;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -36,7 +37,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let matches = Command::new("termviz")
         .about("ROS visualization on the terminal")
         .arg(
-            Arg::new("config").long_help("Optional YAML file with a custom termviz configuration."),
+            Arg::new("config")
+                .long_help("Optional YAML file with a custom termviz configuration.")
+                .value_parser(value_parser!(PathBuf)),
         )
         .arg(
             Arg::new("tf-wait-time")

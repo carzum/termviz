@@ -25,20 +25,3 @@ jobs:
       run: ROSRUST_MSG_PATH=/usr/share/ cargo build --verbose
     - name: Run tests
       run: ROSRUST_MSG_PATH=/usr/share/ cargo test --verbose
-
-  build-noetic:
-
-    runs-on: ubuntu-20.04
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: check formatting
-      run: cargo fmt --all -- --check
-    - name: check out Rust 2018 edition (Ubuntu 20.04)
-      run: rustup default 1.75.0
-    - name: install ROS messages
-      run: sudo apt install ros-geometry-msgs ros-visualization-msgs ros-sensor-msgs ros-nav-msgs ros-tf2-msgs
-    - name: Build
-      run: ROSRUST_MSG_PATH=/usr/share/ cargo build --verbose
-    - name: Run tests
-      run: ROSRUST_MSG_PATH=/usr/share/ cargo test --verbose

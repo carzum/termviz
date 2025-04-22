@@ -23,7 +23,7 @@ nalgebra = ">=0.29.0"
 rand = "0.8.5"
 rosrust = "0.9.11"
 rosrust_msg = "0.1.7"
-rustros_tf = { git = "https://github.com/maximaerz/rustros_tf" }
+rustros_tf = { git = "https://github.com/Magazino/rustros_tf" }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_derive = "1.0.217"
 strum = "0.23"

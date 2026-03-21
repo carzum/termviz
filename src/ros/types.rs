@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::time::Duration as StdDuration;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

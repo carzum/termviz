@@ -8,7 +8,7 @@ exclude = ["assets/*", ".github"]
 description = "ROS visualization on the terminal"
 
 [features]
-default = ["ros1"]
+default = []
 ros1 = ["dep:rosrust", "dep:rosrust_msg", "dep:rustros_tf"]
 # ROS 2 backend via `r2r` (rosidl-generated messages).
 ros2 = ["dep:r2r"]
@@ -71,4 +71,7 @@ serial_test = "3.2.0"
 inherits = "release"
 debug = true
 split-debuginfo = "packed"
+
+[patch.crates-io]
+traitobject = { path = "vendor/traitobject" }
 

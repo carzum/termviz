@@ -12,7 +12,15 @@ use std::{ffi::OsStr, io};
 pub fn termviz_bin() -> PathBuf {
     std::env::var_os("CARGO_BIN_EXE_termviz")
         .map(PathBuf::from)
-        .expect("CARGO_BIN_EXE_termviz not set (are you running via `cargo test`?)")
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|path| path.parent().map(Path::to_path_buf))
+                .and_then(|path| path.parent().map(Path::to_path_buf))
+                .map(|path| path.join("termviz"))
+                .filter(|path| path.is_file())
+        })
+        .expect("termviz binary not found; run tests via `cargo test` so Cargo builds the binary")
 }
 
 pub fn minimal_config_yaml() -> &'static str {
@@ -25,10 +33,10 @@ robot_frame: base_link
 
 map_topics:
   - topic: map
-        color:
-            r: 255
-            g: 255
-            b: 255
+    color:
+      r: 255
+      g: 255
+      b: 255
     threshold: 1
 laser_topics: []
 marker_topics: []
@@ -73,6 +81,7 @@ pub fn command_exists(cmd: &str) -> bool {
         .is_ok()
 }
 
+#[allow(dead_code)]
 pub fn pick_unused_port() -> u16 {
     std::net::TcpListener::bind("127.0.0.1:0")
         .expect("bind ephemeral port")
@@ -110,6 +119,7 @@ impl Drop for ProcessGuard {
     }
 }
 
+#[allow(dead_code)]
 pub fn spawn_roscore(port: u16, log_dir: &Path) -> io::Result<ProcessGuard> {
     let mut cmd = Command::new("roscore");
     cmd.arg("-p")
@@ -165,6 +175,43 @@ pub fn spawn_static_tf(
             "ROS master not reachable after starting static TF",
         ));
     }
+    Ok(guard)
+}
+
+#[allow(dead_code)]
+pub fn spawn_ros2_static_tf(
+    ros_domain_id: &str,
+    frame: &str,
+    child_frame: &str,
+    log_dir: &Path,
+) -> io::Result<ProcessGuard> {
+    let mut cmd = Command::new("ros2");
+    cmd.arg("run")
+        .arg("tf2_ros")
+        .arg("static_transform_publisher")
+        .arg("--x")
+        .arg("0")
+        .arg("--y")
+        .arg("0")
+        .arg("--z")
+        .arg("0")
+        .arg("--yaw")
+        .arg("0")
+        .arg("--pitch")
+        .arg("0")
+        .arg("--roll")
+        .arg("0")
+        .arg("--frame-id")
+        .arg(frame)
+        .arg("--child-frame-id")
+        .arg(child_frame)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .env("ROS_DOMAIN_ID", ros_domain_id)
+        .env("ROS_LOG_DIR", log_dir);
+
+    let guard = ProcessGuard::spawn(cmd)?;
+    thread::sleep(Duration::from_millis(500));
     Ok(guard)
 }
 

@@ -4,23 +4,36 @@ use futures::StreamExt;
 use nalgebra::geometry::{Isometry3, Quaternion as NaQuaternion, Translation3, UnitQuaternion};
 use serde::de::DeserializeOwned;
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
+use std::thread;
+use std::time::Duration as StdDuration;
 
 pub struct Ros2Runtime {
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     tf: Arc<TfBuffer>,
+    spinner_running: Arc<AtomicBool>,
+    spinner: Option<thread::JoinHandle<()>>,
 }
 
 impl Ros2Runtime {
     pub fn init(name: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let ctx = r2r::Context::create()?;
         let node = r2r::Node::create(ctx, name, "")?;
-        let node = Arc::new(node);
+        let node = Arc::new(Mutex::new(node));
 
         let tf = Arc::new(TfBuffer::new());
         tf.clone().start(node.clone())?;
 
-        Ok(Self { node, tf })
+        let spinner_running = Arc::new(AtomicBool::new(true));
+        let spinner = Some(start_spinner(node.clone(), spinner_running.clone()));
+
+        Ok(Self {
+            node,
+            tf,
+            spinner_running,
+            spinner,
+        })
     }
 
     pub fn tf_client(&self) -> Arc<dyn TfClient> {
@@ -33,7 +46,8 @@ impl Ros2Runtime {
     }
 
     pub fn topics(&self) -> Vec<(String, String)> {
-        match self.node.get_topic_names_and_types() {
+        let node = self.node.lock().unwrap();
+        match node.get_topic_names_and_types() {
             Ok(map) => map
                 .into_iter()
                 .flat_map(|(name, types)| {
@@ -194,6 +208,15 @@ impl Ros2Runtime {
     }
 }
 
+impl Drop for Ros2Runtime {
+    fn drop(&mut self) {
+        self.spinner_running.store(false, Ordering::Relaxed);
+        if let Some(spinner) = self.spinner.take() {
+            let _ = spinner.join();
+        }
+    }
+}
+
 pub struct SubscriptionHandle {
     _join: tokio::task::JoinHandle<()>,
 }
@@ -262,6 +285,26 @@ fn isometry_from_transform(tf: &Transform) -> Isometry3<f64> {
     Isometry3::from_parts(tra, rot)
 }
 
+fn default_qos() -> r2r::QosProfile {
+    // Use the default (volatile) QoS for most dynamic topics. Transient-local
+    // durability is applied explicitly where needed (e.g. maps, /tf_static).
+    r2r::QosProfile::default()
+}
+
+fn start_spinner(
+    node: Arc<Mutex<r2r::Node>>,
+    running: Arc<AtomicBool>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        while running.load(Ordering::Relaxed) {
+            match node.lock() {
+                Ok(mut node) => node.spin_once(StdDuration::from_millis(20)),
+                Err(_) => break,
+            }
+        }
+    })
+}
+
 pub struct TfBuffer {
     // stores transform that maps from `child` -> `parent`
     edges: RwLock<HashMap<(String, String), Isometry3<f64>>>,
@@ -274,7 +317,8 @@ impl TfBuffer {
         }
     }
 
-    pub fn start(self: Arc<Self>, node: Arc<r2r::Node>) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(self: Arc<Self>, node: Arc<Mutex<r2r::Node>>) -> Result<(), Box<dyn std::error::Error>> {
+        let mut node = node.lock().unwrap();
         let mut tf_sub = node.subscribe::<r2r::tf2_msgs::msg::TFMessage>(
             "/tf",
             r2r::QosProfile::default(),
@@ -338,10 +382,9 @@ impl TfBuffer {
                 if parent == &current {
                     // move current(parent) -> child (need inverse)
                     if !visited.contains_key(child) {
-                        if let Some(inv) = iso_child_to_parent.try_inverse() {
-                            visited.insert(child.clone(), inv * current_to_target);
-                            queue.push_back(child.clone());
-                        }
+                        let inv = iso_child_to_parent.inverse();
+                        visited.insert(child.clone(), inv * current_to_target);
+                        queue.push_back(child.clone());
                     }
                 }
             }
@@ -392,11 +435,12 @@ impl TfClient for TfBuffer {
 }
 
 pub fn subscribe_laserscan(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(LaserScan) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    let mut sub = node.subscribe::<r2r::sensor_msgs::msg::LaserScan>(topic, r2r::QosProfile::default())?;
+    let mut node = node.lock().unwrap();
+    let mut sub = node.subscribe::<r2r::sensor_msgs::msg::LaserScan>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(scan) = sub.next().await {
             callback(LaserScan {
@@ -412,12 +456,15 @@ pub fn subscribe_laserscan(
 }
 
 pub fn subscribe_occupancy_grid(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(OccupancyGrid) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    // Maps are often transient_local in ROS2.
-    let qos = r2r::QosProfile::transient_local(r2r::QosProfile::default());
+    // Use default (volatile) QoS for bag playback compatibility. Transient-local
+    // durability can be enabled explicitly when connecting to live latched map
+    // publishers.
+    let qos = default_qos();
+    let mut node = node.lock().unwrap();
     let mut sub = node.subscribe::<r2r::nav_msgs::msg::OccupancyGrid>(topic, qos)?;
     let join = tokio::spawn(async move {
         while let Some(map) = sub.next().await {
@@ -437,11 +484,12 @@ pub fn subscribe_occupancy_grid(
 }
 
 pub fn subscribe_pointcloud2(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(PointCloud2) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    let mut sub = node.subscribe::<r2r::sensor_msgs::msg::PointCloud2>(topic, r2r::QosProfile::default())?;
+    let mut node = node.lock().unwrap();
+    let mut sub = node.subscribe::<r2r::sensor_msgs::msg::PointCloud2>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(cloud) = sub.next().await {
             callback(PointCloud2 {
@@ -466,11 +514,12 @@ pub fn subscribe_pointcloud2(
 }
 
 pub fn subscribe_polygon_stamped(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(PolygonStamped) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    let mut sub = node.subscribe::<r2r::geometry_msgs::msg::PolygonStamped>(topic, r2r::QosProfile::default())?;
+    let mut node = node.lock().unwrap();
+    let mut sub = node.subscribe::<r2r::geometry_msgs::msg::PolygonStamped>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(msg) = sub.next().await {
             callback(PolygonStamped {
@@ -494,11 +543,12 @@ pub fn subscribe_polygon_stamped(
 }
 
 pub fn subscribe_image(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(Image) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    let mut sub = node.subscribe::<r2r::sensor_msgs::msg::Image>(topic, r2r::QosProfile::default())?;
+    let mut node = node.lock().unwrap();
+    let mut sub = node.subscribe::<r2r::sensor_msgs::msg::Image>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(img) = sub.next().await {
             callback(Image {
@@ -506,7 +556,7 @@ pub fn subscribe_image(
                 width: img.width,
                 height: img.height,
                 encoding: img.encoding,
-                is_bigendian: img.is_bigendian,
+                is_bigendian: img.is_bigendian != 0,
                 data: img.data,
             });
         }
@@ -557,11 +607,12 @@ fn marker_from_ros2(m: r2r::visualization_msgs::msg::Marker) -> Marker {
 }
 
 pub fn subscribe_marker(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(Marker) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    let mut sub = node.subscribe::<r2r::visualization_msgs::msg::Marker>(topic, r2r::QosProfile::default())?;
+    let mut node = node.lock().unwrap();
+    let mut sub = node.subscribe::<r2r::visualization_msgs::msg::Marker>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(m) = sub.next().await {
             callback(marker_from_ros2(m));
@@ -571,11 +622,12 @@ pub fn subscribe_marker(
 }
 
 pub fn subscribe_marker_array(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(MarkerArray) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    let mut sub = node.subscribe::<r2r::visualization_msgs::msg::MarkerArray>(topic, r2r::QosProfile::default())?;
+    let mut node = node.lock().unwrap();
+    let mut sub = node.subscribe::<r2r::visualization_msgs::msg::MarkerArray>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(arr) = sub.next().await {
             callback(MarkerArray {
@@ -587,11 +639,12 @@ pub fn subscribe_marker_array(
 }
 
 pub fn subscribe_pose_stamped(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(PoseStamped) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    let mut sub = node.subscribe::<r2r::geometry_msgs::msg::PoseStamped>(topic, r2r::QosProfile::default())?;
+    let mut node = node.lock().unwrap();
+    let mut sub = node.subscribe::<r2r::geometry_msgs::msg::PoseStamped>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(ps) = sub.next().await {
             callback(PoseStamped {
@@ -604,11 +657,12 @@ pub fn subscribe_pose_stamped(
 }
 
 pub fn subscribe_pose_array(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(PoseArray) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    let mut sub = node.subscribe::<r2r::geometry_msgs::msg::PoseArray>(topic, r2r::QosProfile::default())?;
+    let mut node = node.lock().unwrap();
+    let mut sub = node.subscribe::<r2r::geometry_msgs::msg::PoseArray>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(pa) = sub.next().await {
             callback(PoseArray {
@@ -621,11 +675,12 @@ pub fn subscribe_pose_array(
 }
 
 pub fn subscribe_path(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
     callback: impl Fn(Path) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
-    let mut sub = node.subscribe::<r2r::nav_msgs::msg::Path>(topic, r2r::QosProfile::default())?;
+    let mut node = node.lock().unwrap();
+    let mut sub = node.subscribe::<r2r::nav_msgs::msg::Path>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(path) = sub.next().await {
             callback(Path {
@@ -648,7 +703,8 @@ pub struct TwistPublisher {
     inner: r2r::Publisher<r2r::geometry_msgs::msg::Twist>,
 }
 
-pub fn publish_twist(node: Arc<r2r::Node>, topic: &str) -> Result<TwistPublisher, Box<dyn std::error::Error>> {
+pub fn publish_twist(node: Arc<Mutex<r2r::Node>>, topic: &str) -> Result<TwistPublisher, Box<dyn std::error::Error>> {
+    let mut node = node.lock().unwrap();
     Ok(TwistPublisher {
         inner: node.create_publisher::<r2r::geometry_msgs::msg::Twist>(topic, r2r::QosProfile::default())?,
     })
@@ -666,7 +722,8 @@ pub struct PosePublisher {
     inner: r2r::Publisher<r2r::geometry_msgs::msg::Pose>,
 }
 
-pub fn publish_pose(node: Arc<r2r::Node>, topic: &str) -> Result<PosePublisher, Box<dyn std::error::Error>> {
+pub fn publish_pose(node: Arc<Mutex<r2r::Node>>, topic: &str) -> Result<PosePublisher, Box<dyn std::error::Error>> {
+    let mut node = node.lock().unwrap();
     Ok(PosePublisher {
         inner: node.create_publisher::<r2r::geometry_msgs::msg::Pose>(topic, r2r::QosProfile::default())?,
     })
@@ -688,7 +745,8 @@ pub struct PoseStampedPublisher {
     inner: r2r::Publisher<r2r::geometry_msgs::msg::PoseStamped>,
 }
 
-pub fn publish_pose_stamped(node: Arc<r2r::Node>, topic: &str) -> Result<PoseStampedPublisher, Box<dyn std::error::Error>> {
+pub fn publish_pose_stamped(node: Arc<Mutex<r2r::Node>>, topic: &str) -> Result<PoseStampedPublisher, Box<dyn std::error::Error>> {
+    let mut node = node.lock().unwrap();
     Ok(PoseStampedPublisher {
         inner: node.create_publisher::<r2r::geometry_msgs::msg::PoseStamped>(topic, r2r::QosProfile::default())?,
     })
@@ -716,9 +774,10 @@ pub struct PoseWithCovStampedPublisher {
 }
 
 pub fn publish_pose_with_cov_stamped(
-    node: Arc<r2r::Node>,
+    node: Arc<Mutex<r2r::Node>>,
     topic: &str,
 ) -> Result<PoseWithCovStampedPublisher, Box<dyn std::error::Error>> {
+    let mut node = node.lock().unwrap();
     Ok(PoseWithCovStampedPublisher {
         inner: node.create_publisher::<r2r::geometry_msgs::msg::PoseWithCovarianceStamped>(
             topic,

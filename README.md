@@ -26,12 +26,16 @@ git clone git@github.com:carzum/termviz.git
 
 Build the project via cargo:
 ```bash
-cargo build --release
+cargo build --release --features ros1
+```
+or
+```bash
+cargo build --release --features ros2
 ```
 
 ### ROS1 / ROS2 feature flags
 
-By default, TermViz builds against ROS1 (`ros1` Cargo feature).
+TermViz does not enable a ROS backend by default. You must select exactly one backend feature: `ros1` or `ros2`.
 
 - ROS1 build (explicit):
   ```bash
@@ -41,8 +45,13 @@ By default, TermViz builds against ROS1 (`ros1` Cargo feature).
   - Ensure you have a ROS2 environment sourced (e.g. `source /opt/ros/<distro>/setup.bash`) so `ROS_DISTRO` is a ROS2 distro (not `noetic`).
   - Then build with:
     ```bash
-    cargo build --release --no-default-features --features ros2
+    cargo build --release --features ros2
     ```
+
+Repo-local Cargo aliases are also available:
+
+- ROS1: `cargo build-ros1`, `cargo run-ros1`, `cargo test-ros1`
+- ROS2: `cargo build-ros2`, `cargo run-ros2`, `cargo test-ros2`
 
 Note: for some ROS1 setups you may need `ROSRUST_MSG_PATH=/usr/share/` when building.
 

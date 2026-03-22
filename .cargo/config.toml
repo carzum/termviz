@@ -1,0 +1,7 @@
+[alias]
+build-ros1 = "build --features ros1"
+build-ros2 = "build --features ros2"
+run-ros1 = "run --features ros1"
+run-ros2 = "run --features ros2"
+test-ros1 = "test --features ros1"
+test-ros2 = "test --features ros2"

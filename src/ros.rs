@@ -1,6 +1,9 @@
 #[cfg(all(feature = "ros1", feature = "ros2"))]
 compile_error!("Features 'ros1' and 'ros2' are mutually exclusive");
 
+#[cfg(not(any(feature = "ros1", feature = "ros2")))]
+compile_error!("Enable exactly one backend feature: 'ros1' or 'ros2'");
+
 pub mod tf;
 pub mod types;
 

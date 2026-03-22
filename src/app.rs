@@ -65,7 +65,9 @@ impl<B: Backend> App<B> {
             viewport,
             config.teleop,
         ));
-        let topic_manager = Box::new(app_modes::topic_managment::TopicManager::new(config_copy));
+        let topic_manager = Box::new(app_modes::topic_managment::LazyTopicManager::new(
+            config_copy,
+        ));
         let image_view = Box::new(app_modes::image_view::ImageView::new(config.image_topics));
         App {
             mode: 1,

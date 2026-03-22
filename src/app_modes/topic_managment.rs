@@ -11,6 +11,66 @@ use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap};
 use tui::Frame;
 
+fn topic_manager_description() -> Vec<String> {
+    vec!["Topic manager can enable and disable displayed topics".to_string()]
+}
+
+fn topic_manager_keymap() -> Vec<[String; 2]> {
+    vec![
+        [
+            input::UP.to_string(),
+            "Selects the previous item in the active list".to_string(),
+        ],
+        [
+            input::DOWN.to_string(),
+            "Selects the next item in the active list".to_string(),
+        ],
+        [
+            input::RIGHT.to_string(),
+            "Shifts an element to the right if the supported topic list is active".to_string(),
+        ],
+        [
+            input::LEFT.to_string(),
+            "Shifts an element to the left if the active list is active".to_string(),
+        ],
+        [
+            input::ROTATE_RIGHT.to_string(),
+            "Changes the list where items are selected to the active topics list".to_string(),
+        ],
+        [
+            input::ROTATE_LEFT.to_string(),
+            "Changes the list where items are selected to the supported topics list"
+                .to_string(),
+        ],
+        [input::CONFIRM.to_string(), "Saves to config".to_string()],
+    ]
+}
+
+pub struct LazyTopicManager {
+    config: Option<TermvizConfig>,
+    manager: Option<TopicManager>,
+}
+
+impl LazyTopicManager {
+    pub fn new(config: TermvizConfig) -> LazyTopicManager {
+        LazyTopicManager {
+            config: Some(config),
+            manager: None,
+        }
+    }
+
+    fn ensure_initialized(&mut self) -> &mut TopicManager {
+        if self.manager.is_none() {
+            let config = self
+                .config
+                .take()
+                .expect("topic manager config missing during initialization");
+            self.manager = Some(TopicManager::new(config));
+        }
+        self.manager.as_mut().unwrap()
+    }
+}
+
 #[derive(Clone)]
 struct SelectableTopics {
     // `items` is the state managed by your application.
@@ -303,7 +363,7 @@ impl AppMode for TopicManager {
     fn run(&mut self) {}
     fn reset(&mut self) {}
     fn get_description(&self) -> Vec<String> {
-        vec!["Topic manager can enable and disable displayed topics".to_string()]
+        topic_manager_description()
     }
 
     fn handle_input(&mut self, input: &String) {
@@ -337,40 +397,60 @@ impl AppMode for TopicManager {
     }
 
     fn get_keymap(&self) -> Vec<[String; 2]> {
-        vec![
-            [
-                input::UP.to_string(),
-                "Selects the previous item in the active list".to_string(),
-            ],
-            [
-                input::DOWN.to_string(),
-                "Selects the next item in the active list".to_string(),
-            ],
-            [
-                input::RIGHT.to_string(),
-                "Shifts an element to the right if the supported topic list is active".to_string(),
-            ],
-            [
-                input::LEFT.to_string(),
-                "Shifts an element to the left if the active list is active".to_string(),
-            ],
-            [
-                input::ROTATE_RIGHT.to_string(),
-                "Changes the list where items are selected to the active topics list".to_string(),
-            ],
-            [
-                input::ROTATE_LEFT.to_string(),
-                "Changes the list where items are selected to the supported topics list"
-                    .to_string(),
-            ],
-            [input::CONFIRM.to_string(), "Saves to config".to_string()],
-        ]
+        topic_manager_keymap()
     }
 
     fn get_name(&self) -> String {
         "Topic Manager".to_string()
     }
 }
+
+impl AppMode for LazyTopicManager {
+    fn run(&mut self) {
+        if let Some(manager) = self.manager.as_mut() {
+            manager.run();
+        }
+    }
+
+    fn reset(&mut self) {
+        self.ensure_initialized().reset();
+    }
+
+    fn handle_input(&mut self, input: &String) {
+        self.ensure_initialized().handle_input(input);
+    }
+
+    fn get_description(&self) -> Vec<String> {
+        self.manager
+            .as_ref()
+            .map(|manager| manager.get_description())
+            .unwrap_or_else(topic_manager_description)
+    }
+
+    fn get_keymap(&self) -> Vec<[String; 2]> {
+        self.manager
+            .as_ref()
+            .map(|manager| manager.get_keymap())
+            .unwrap_or_else(topic_manager_keymap)
+    }
+
+    fn get_name(&self) -> String {
+        self.manager
+            .as_ref()
+            .map(|manager| manager.get_name())
+            .unwrap_or_else(|| "Topic Manager".to_string())
+    }
+}
+
+impl<B: Backend> Drawable<B> for LazyTopicManager {
+    fn draw(&self, f: &mut Frame<B>) {
+        if let Some(manager) = self.manager.as_ref() {
+            manager.draw(f);
+        }
+    }
+}
+
+impl<B: Backend> BaseMode<B> for LazyTopicManager {}
 
 impl<B: Backend> Drawable<B> for TopicManager {
     fn draw(&self, f: &mut Frame<B>) {

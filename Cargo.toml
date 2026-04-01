@@ -24,7 +24,8 @@ crossterm = { version = '0.23', features = ["event-stream"] }
 dialoguer = "0.11.0"
 futures = "0.3"
 futures-timer = "3.0"
-image = "0.24"  # TODO: tui-image (see below) doesn't allow newer versions.
+# Kept at 0.24 because the current `tui-image` dependency has not been updated for newer `image` APIs.
+image = "0.24"
 indexmap = "=2.11.0"
 nalgebra = ">=0.29.0"
 rand = "0.8.5"
@@ -73,5 +74,5 @@ debug = true
 split-debuginfo = "packed"
 
 [patch.crates-io]
+# `hyper 0.10` still pulls `traitobject`; vendoring keeps that legacy dependency building on current Rust.
 traitobject = { path = "vendor/traitobject" }
-

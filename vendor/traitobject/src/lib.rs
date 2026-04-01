@@ -1,4 +1,5 @@
 #![cfg_attr(test, deny(warnings))]
+#![allow(bare_trait_objects)]
 #![deny(missing_docs)]
 
 //! # traitobject

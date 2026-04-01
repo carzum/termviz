@@ -24,15 +24,6 @@ Get the source code:
 git clone git@github.com:carzum/termviz.git
 ```
 
-Build the project via cargo:
-```bash
-cargo build --release --features ros1
-```
-or
-```bash
-cargo build --release --features ros2
-```
-
 ### ROS1 / ROS2 feature flags
 
 TermViz does not enable a ROS backend by default. You must select exactly one backend feature: `ros1` or `ros2`.
@@ -186,18 +177,7 @@ teleop:                        # Parameters for the Teleoperate mode.
 
 ## Integration tests
 
-This repository includes black-box integration tests that exercise the built `termviz` binary as an external program. Tests live in `tests/` and aim to be fast and hermetic where possible.
-
-- `tests/cli_help.rs`: verifies `termviz --help` prints help text and exits successfully.
-- `tests/config_invalid.rs`: runs `termviz` with a malformed YAML config and asserts it fails early (before trying to connect to ROS).
-- `tests/tui_prompt_continue.rs` (ROS-gated): starts `roscore`, answers the TF "Continue?" prompt under a PTY, reaches terminal init, then exits cleanly via Ctrl+C.
-- `tests/ros_static_tf.rs` (ROS-gated): starts `roscore` and a static TF publisher, verifies `termviz` reaches terminal init without prompting, then exits cleanly via Ctrl+C.
-
-Implementation notes:
-- Tests use `assert_cmd` for process assertions and `portable-pty` to drive the TUI under a PTY when needed.
-- The test harness at `tests/support/mod.rs` provides utilities to spawn `termviz` under a PTY, collect output, and send keystrokes (Ctrl+C, prompt answers, etc.).
-- Two ROS-gated tests exercise positive startup paths: one that waits for a TF and prompts the user, and one that provides a static TF so no prompt appears.
-- ROS-gated tests are only executed when `TERMVIZ_IT_ROS=1` is set. The harness spawns an ephemeral `roscore` and sets `ROS_MASTER_URI` so tests use an isolated ROS master.
+This repository includes black-box integration tests under `tests/`.
 
 Requirements for ROS-gated tests
 - `roscore` and `rosrun` must be available in `PATH` (ROS1/Noetic or compatible).
@@ -206,19 +186,19 @@ Requirements for ROS-gated tests
 Running the tests
 
 ```bash
-cargo test
+cargo test --features ros1
 ```
 
 Run only the CLI/help test:
 
 ```bash
-cargo test --test cli_help
+cargo test --features ros1 --test cli_help
 ```
 
 Enable and run ROS-gated tests (local ROS install required):
 
 ```bash
-TERMVIZ_IT_ROS=1 cargo test
+TERMVIZ_IT_ROS=1 cargo test --features ros1
 ```
 
 CI notes

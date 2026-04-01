@@ -39,8 +39,7 @@ fn topic_manager_keymap() -> Vec<[String; 2]> {
         ],
         [
             input::ROTATE_LEFT.to_string(),
-            "Changes the list where items are selected to the supported topics list"
-                .to_string(),
+            "Changes the list where items are selected to the supported topics list".to_string(),
         ],
         [input::CONFIRM.to_string(), "Saves to config".to_string()],
     ]
@@ -153,80 +152,167 @@ pub struct TopicManager {
     was_saved: bool,
 }
 
+fn topic_type_pair(topic: &str, topic_type: &str) -> [String; 2] {
+    [topic.to_string(), topic_type.to_string()]
+}
+
+fn active_topics_from_config(config: &TermvizConfig) -> Vec<[String; 2]> {
+    let active_laser_topics: Vec<[String; 2]> = config
+        .laser_topics
+        .iter()
+        .map(|i| topic_type_pair(&i.topic, "sensor_msgs/LaserScan"))
+        .collect();
+    let active_marker_array_topics: Vec<[String; 2]> = config
+        .marker_array_topics
+        .iter()
+        .map(|i| topic_type_pair(&i.topic, "visualization_msgs/MarkerArray"))
+        .collect();
+    let active_marker_topics: Vec<[String; 2]> = config
+        .marker_topics
+        .iter()
+        .map(|i| topic_type_pair(&i.topic, "visualization_msgs/Marker"))
+        .collect();
+    let active_pose_stamped_topics: Vec<[String; 2]> = config
+        .pose_stamped_topics
+        .iter()
+        .map(|i| topic_type_pair(&i.topic, "geometry_msgs/PoseStamped"))
+        .collect();
+    let active_pose_array_topics: Vec<[String; 2]> = config
+        .pose_array_topics
+        .iter()
+        .map(|i| topic_type_pair(&i.topic, "geometry_msgs/PoseArray"))
+        .collect();
+    let active_path_topics: Vec<[String; 2]> = config
+        .path_topics
+        .iter()
+        .map(|i| topic_type_pair(&i.topic, "nav_msgs/Path"))
+        .collect();
+    let active_image_topics: Vec<[String; 2]> = config
+        .image_topics
+        .iter()
+        .map(|i| topic_type_pair(&i.topic, "sensor_msgs/Image"))
+        .collect();
+    let polygon_stamped_topics: Vec<[String; 2]> = config
+        .polygon_stamped_topics
+        .iter()
+        .map(|i| topic_type_pair(&i.topic, "geometry_msgs/PolygonStamped"))
+        .collect();
+
+    [
+        active_image_topics,
+        active_laser_topics,
+        active_marker_array_topics,
+        active_marker_topics,
+        active_path_topics,
+        active_pose_array_topics,
+        active_pose_stamped_topics,
+        polygon_stamped_topics,
+    ]
+    .concat()
+}
+
+fn supported_topic_types() -> Vec<String> {
+    vec![
+        "geometry_msgs/PoseArray".to_string(),
+        "geometry_msgs/PoseStamped".to_string(),
+        "nav_msgs/Path".to_string(),
+        "sensor_msgs/Image".to_string(),
+        "sensor_msgs/LaserScan".to_string(),
+        "visualization_msgs/Marker".to_string(),
+        "visualization_msgs/MarkerArray".to_string(),
+        "geometry_msgs/PolygonStamped".to_string(),
+    ]
+}
+
+fn rebuild_config_from_selected_topics(
+    config: &TermvizConfig,
+    selected_topics: &[[String; 2]],
+) -> TermvizConfig {
+    let mut config = config.clone();
+    config.laser_topics.clear();
+    config.marker_array_topics.clear();
+    config.marker_topics.clear();
+    config.pose_stamped_topics.clear();
+    config.pose_array_topics.clear();
+    config.path_topics.clear();
+    config.image_topics.clear();
+    config.polygon_stamped_topics.clear();
+
+    let mut rng = rand::thread_rng();
+    for topic in selected_topics {
+        match topic[1].as_str() {
+            "sensor_msgs/LaserScan" => config.laser_topics.push(ListenerConfigColor {
+                topic: topic[0].clone(),
+                color: ConfigColor {
+                    r: rng.gen_range(0..255),
+                    g: rng.gen_range(0..255),
+                    b: rng.gen_range(0..255),
+                },
+            }),
+            "visualization_msgs/MarkerArray" => {
+                config.marker_array_topics.push(ListenerConfig {
+                    topic: topic[0].clone(),
+                })
+            }
+            "visualization_msgs/Marker" => config.marker_topics.push(ListenerConfig {
+                topic: topic[0].clone(),
+            }),
+            "geometry_msgs/PoseStamped" => config.pose_stamped_topics.push(PoseListenerConfig {
+                topic: topic[0].clone(),
+                color: ConfigColor {
+                    r: rng.gen_range(0..255),
+                    g: rng.gen_range(0..255),
+                    b: rng.gen_range(0..255),
+                },
+                length: 0.2,
+                style: "axis".to_string(),
+            }),
+            "geometry_msgs/PoseArray" => config.pose_array_topics.push(PoseListenerConfig {
+                topic: topic[0].clone(),
+                color: ConfigColor {
+                    r: rng.gen_range(0..255),
+                    g: rng.gen_range(0..255),
+                    b: rng.gen_range(0..255),
+                },
+                length: 0.2,
+                style: "axis".to_string(),
+            }),
+            "nav_msgs/Path" => config.path_topics.push(PoseListenerConfig {
+                topic: topic[0].clone(),
+                color: ConfigColor {
+                    r: rng.gen_range(0..255),
+                    g: rng.gen_range(0..255),
+                    b: rng.gen_range(0..255),
+                },
+                length: 0.2,
+                style: "axis".to_string(),
+            }),
+            "sensor_msgs/Image" => config.image_topics.push(ImageListenerConfig {
+                topic: topic[0].clone(),
+                rotation: 0,
+            }),
+            "geometry_msgs/PolygonStamped" => {
+                config.polygon_stamped_topics.push(ListenerConfigColor {
+                    topic: topic[0].clone(),
+                    color: ConfigColor {
+                        r: rng.gen_range(0..255),
+                        g: rng.gen_range(0..255),
+                        b: rng.gen_range(0..255),
+                    },
+                })
+            }
+            _ => (),
+        }
+    }
+
+    config
+}
+
 impl TopicManager {
     pub fn new(config: TermvizConfig) -> TopicManager {
         let config = config.clone();
-
-        // Get all topics currently active in the config and sort them by topic type
-        let active_laser_topics: Vec<[String; 2]> = config
-            .laser_topics
-            .iter()
-            .map(|i| [i.topic.clone(), "sensor_msgs/LaserScan".to_string()])
-            .collect();
-        let active_marker_array_topics: Vec<[String; 2]> = config
-            .marker_array_topics
-            .iter()
-            .map(|i| {
-                [
-                    i.topic.clone(),
-                    "visualization_msgs/MarkerArray".to_string(),
-                ]
-            })
-            .collect();
-        let active_marker_topics: Vec<[String; 2]> = config
-            .marker_topics
-            .iter()
-            .map(|i| [i.topic.clone(), "visualization_msgs/Marker".to_string()])
-            .collect();
-        let active_pose_stamped_topics: Vec<[String; 2]> = config
-            .pose_stamped_topics
-            .iter()
-            .map(|i| [i.topic.clone(), "geometry_msgs/PoseStamped".to_string()])
-            .collect();
-        let active_pose_array_topics: Vec<[String; 2]> = config
-            .pose_array_topics
-            .iter()
-            .map(|i| [i.topic.clone(), "geometry_msgs/PoseArray".to_string()])
-            .collect();
-        let active_path_topics: Vec<[String; 2]> = config
-            .path_topics
-            .iter()
-            .map(|i| [i.topic.clone(), "nav_msgs/Path".to_string()])
-            .collect();
-        let active_image_topics: Vec<[String; 2]> = config
-            .path_topics
-            .iter()
-            .map(|i| [i.topic.clone(), "sensor_msgs/Image".to_string()])
-            .collect();
-        let polygon_stamped_topics: Vec<[String; 2]> = config
-            .polygon_stamped_topics
-            .iter()
-            .map(|i| [i.topic.clone(), "geometry_msgs/PolygonStamped".to_string()])
-            .collect();
-        // Collect them into a big list
-        let all_active_topics = [
-            active_image_topics,
-            active_laser_topics,
-            active_marker_array_topics,
-            active_marker_topics,
-            active_path_topics,
-            active_pose_array_topics,
-            active_pose_stamped_topics,
-            polygon_stamped_topics,
-        ]
-        .concat();
-
-        // We could get this from config, but would need some breaking changes in config
-        let supported_topic_types = vec![
-            "geometry_msgs/PoseArray".to_string(),
-            "geometry_msgs/PoseStamped".to_string(),
-            "nav_msgs/Path".to_string(),
-            "sensor_msgs/Image".to_string(),
-            "sensor_msgs/LaserScan".to_string(),
-            "visualization_msgs/Marker".to_string(),
-            "visualization_msgs/MarkerArray".to_string(),
-            "geometry_msgs/PolygonStamped".to_string(),
-        ];
+        let all_active_topics = active_topics_from_config(&config);
+        let supported_topic_types = supported_topic_types();
         // Collect all topics, which:
         //  - are supported
         //  - are inactive
@@ -267,93 +353,56 @@ impl TopicManager {
     }
 
     pub fn save(&mut self) {
-        let mut config = self.config.clone();
-
-        // Flush all to get a new config
-        config.laser_topics.clear();
-        config.marker_array_topics.clear();
-        config.marker_topics.clear();
-        config.pose_stamped_topics.clear();
-        config.pose_array_topics.clear();
-        config.path_topics.clear();
-        config.polygon_stamped_topics.clear();
-
-        // Fill the respective topics
-        // The current implementation hardcodes where the topics must go
-        // This could be handled by a more descriptive config structure
-        let mut rng = rand::thread_rng();
-        for topic in self.selected_topics.items.iter() {
-            match topic[1].clone().as_ref() {
-                "sensor_msgs/LaserScan" => config.laser_topics.push(ListenerConfigColor {
-                    topic: topic[0].clone(),
-                    color: ConfigColor {
-                        r: rng.gen_range(0..255),
-                        g: rng.gen_range(0..255),
-                        b: rng.gen_range(0..255),
-                    },
-                }),
-                "visualization_msgs/MarkerArray" => {
-                    config.marker_array_topics.push(ListenerConfig {
-                        topic: topic[0].clone(),
-                    })
-                }
-                "visualization_msgs/Marker" => config.marker_topics.push(ListenerConfig {
-                    topic: topic[0].clone(),
-                }),
-                "geometry_msgs/PoseStamped" => {
-                    config.pose_stamped_topics.push(PoseListenerConfig {
-                        topic: topic[0].clone(),
-                        color: ConfigColor {
-                            r: rng.gen_range(0..255),
-                            g: rng.gen_range(0..255),
-                            b: rng.gen_range(0..255),
-                        },
-                        length: 0.2,
-                        style: "axis".to_string(),
-                    })
-                }
-                "geometry_msgs/PoseArray" => config.pose_array_topics.push(PoseListenerConfig {
-                    topic: topic[0].clone(),
-                    color: ConfigColor {
-                        r: rng.gen_range(0..255),
-                        g: rng.gen_range(0..255),
-                        b: rng.gen_range(0..255),
-                    },
-                    length: 0.2,
-                    style: "axis".to_string(),
-                }),
-                "nav_msgs/Path" => config.path_topics.push(PoseListenerConfig {
-                    topic: topic[0].clone(),
-                    color: ConfigColor {
-                        r: rng.gen_range(0..255),
-                        g: rng.gen_range(0..255),
-                        b: rng.gen_range(0..255),
-                    },
-                    length: 0.2,
-                    style: "axis".to_string(),
-                }),
-                "sensor_msg/Image" => config.image_topics.push(ImageListenerConfig {
-                    topic: topic[0].clone(),
-                    rotation: 0,
-                }),
-                "geometry_msgs/PolygonStamped" => {
-                    config.polygon_stamped_topics.push(ListenerConfigColor {
-                        topic: topic[0].clone(),
-                        color: ConfigColor {
-                            r: rng.gen_range(0..255),
-                            g: rng.gen_range(0..255),
-                            b: rng.gen_range(0..255),
-                        },
-                    })
-                }
-
-                _ => (),
-            }
-        }
+        let config = rebuild_config_from_selected_topics(&self.config, &self.selected_topics.items);
 
         // Store and exit termviz
         let _ = confy::store("termviz", "termviz", &(config));
         self.was_saved = true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config_with_image_topic() -> TermvizConfig {
+        let mut config = TermvizConfig::default();
+        config.image_topics = vec![ImageListenerConfig {
+            topic: "camera/image".to_string(),
+            rotation: 270,
+        }];
+        config.path_topics = vec![PoseListenerConfig {
+            topic: "robot/path".to_string(),
+            style: "line".to_string(),
+            color: ConfigColor { r: 0, g: 255, b: 0 },
+            length: 0.2,
+        }];
+        config
+    }
+
+    #[test]
+    fn topic_manager_uses_image_topics_for_active_list() {
+        let active_topics = active_topics_from_config(&config_with_image_topic());
+
+        assert!(active_topics.contains(&topic_type_pair("camera/image", "sensor_msgs/Image")));
+        assert!(!active_topics.contains(&topic_type_pair("robot/path", "sensor_msgs/Image")));
+    }
+
+    #[test]
+    fn topic_manager_save_keeps_selected_image_topics() {
+        let mut config = TermvizConfig::default();
+        config.image_topics = vec![ImageListenerConfig {
+            topic: "stale/image".to_string(),
+            rotation: 90,
+        }];
+        let config = rebuild_config_from_selected_topics(
+            &config,
+            &[topic_type_pair("camera/image", "sensor_msgs/Image")],
+        );
+
+        assert_eq!(config.image_topics.len(), 1);
+        assert_eq!(config.image_topics[0].topic, "camera/image");
+        assert_eq!(config.image_topics[0].rotation, 0);
     }
 }
 

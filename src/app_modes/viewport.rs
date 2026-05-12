@@ -103,10 +103,7 @@ impl Viewport {
             terminal_size: terminal_size,
         }
     }
-    pub fn get_frame_lines(
-        tf: &types::Transform,
-        axis_length: f64,
-    ) -> Vec<Line> {
+    pub fn get_frame_lines(tf: &types::Transform, axis_length: f64) -> Vec<Line> {
         let mut result: Vec<Line> = Vec::new();
         let base_x = transformation::transform_relative_pt(&tf, (axis_length, 0.0));
         let base_y = transformation::transform_relative_pt(&tf, (0.0, axis_length));

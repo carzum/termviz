@@ -24,9 +24,11 @@ impl LaserListener {
         let str_ = static_frame.clone();
 
         let local_tf = tf.clone();
-        let laser_sub = ros::subscribe_laserscan(&config.topic, 2, move |scan: types::LaserScan| {
+        let laser_sub =
+            ros::subscribe_laserscan(&config.topic, 2, move |scan: types::LaserScan| {
                 let mut points: Vec<(f64, f64)> = Vec::new();
-                let res = local_tf.lookup_transform(&str_, &scan.header.frame_id, scan.header.stamp);
+                let res =
+                    local_tf.lookup_transform(&str_, &scan.header.frame_id, scan.header.stamp);
                 match &res {
                     Ok(res) => res,
                     Err(_e) => return,

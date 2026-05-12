@@ -96,7 +96,8 @@ impl PoseStampedListener {
     pub fn new(config: PoseListenerConfig) -> PoseStampedListener {
         let pose = Arc::new(RwLock::new(None));
         let cb_pose = pose.clone();
-        let sub = ros::subscribe_pose_stamped(&config.topic, 2, move |pose_msg: types::PoseStamped| {
+        let sub =
+            ros::subscribe_pose_stamped(&config.topic, 2, move |pose_msg: types::PoseStamped| {
                 let pose_iso = ros_pose_to_isometry(&pose_msg.pose);
                 *cb_pose.write().unwrap() = Some(pose_iso);
             })
@@ -131,7 +132,8 @@ impl PoseArrayListener {
     pub fn new(config: PoseListenerConfig) -> PoseArrayListener {
         let poses = Arc::new(RwLock::new(Vec::<Isometry3<f64>>::new()));
         let cb_poses = poses.clone();
-        let sub = ros::subscribe_pose_array(&config.topic, 2, move |pose_array: types::PoseArray| {
+        let sub =
+            ros::subscribe_pose_array(&config.topic, 2, move |pose_array: types::PoseArray| {
                 let poses_iso = pose_array
                     .poses
                     .into_iter()
@@ -189,14 +191,14 @@ impl PathListener {
         let poses = Arc::new(RwLock::new(Vec::<Isometry3<f64>>::new()));
         let cb_poses = poses.clone();
         let sub = ros::subscribe_path(&config.topic, 2, move |path: types::Path| {
-                let poses_iso = path
-                    .poses
-                    .into_iter()
-                    .map(|p| ros_pose_to_isometry(&p.pose))
-                    .collect();
-                *cb_poses.write().unwrap() = poses_iso;
-            })
-            .unwrap();
+            let poses_iso = path
+                .poses
+                .into_iter()
+                .map(|p| ros_pose_to_isometry(&p.pose))
+                .collect();
+            *cb_poses.write().unwrap() = poses_iso;
+        })
+        .unwrap();
 
         PathListener {
             config: config,

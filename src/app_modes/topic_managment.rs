@@ -249,11 +249,9 @@ fn rebuild_config_from_selected_topics(
                     b: rng.gen_range(0..255),
                 },
             }),
-            "visualization_msgs/MarkerArray" => {
-                config.marker_array_topics.push(ListenerConfig {
-                    topic: topic[0].clone(),
-                })
-            }
+            "visualization_msgs/MarkerArray" => config.marker_array_topics.push(ListenerConfig {
+                topic: topic[0].clone(),
+            }),
             "visualization_msgs/Marker" => config.marker_topics.push(ListenerConfig {
                 topic: topic[0].clone(),
             }),

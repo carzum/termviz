@@ -267,10 +267,10 @@ where
     let pty = native_pty_system();
     let pair = pty
         .openpty(PtySize {
-        rows: 24,
-        cols: 80,
-        pixel_width: 0,
-        pixel_height: 0,
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
         })
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 

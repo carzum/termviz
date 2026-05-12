@@ -48,7 +48,11 @@ fn tui_starts_after_confirm_and_exits_on_ctrl_c() {
 
     // Wait for the confirm prompt, then answer yes.
     let saw_prompt = run.wait_for_output_contains("Continue", Duration::from_secs(5));
-    assert!(saw_prompt, "did not see TF continue prompt; output: {}", run.output.lock().unwrap());
+    assert!(
+        saw_prompt,
+        "did not see TF continue prompt; output: {}",
+        run.output.lock().unwrap()
+    );
 
     run.send("y\n");
 
@@ -65,7 +69,10 @@ fn tui_starts_after_confirm_and_exits_on_ctrl_c() {
         .wait_with_timeout(Duration::from_secs(5))
         .unwrap_or_else(|| {
             run.kill();
-            panic!("termviz did not exit after Ctrl+C; output: {}", run.output.lock().unwrap());
+            panic!(
+                "termviz did not exit after Ctrl+C; output: {}",
+                run.output.lock().unwrap()
+            );
         });
 
     assert!(status.success(), "expected success exit; got {:?}", status);

@@ -25,8 +25,9 @@ fn starts_without_tf_prompt_when_ros2_static_tf_published() {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .subsec_nanos()
-        % 200) + 1)
-        .to_string();
+        % 200)
+        + 1)
+    .to_string();
 
     let _tf = match support::spawn_ros2_static_tf(&ros_domain_id, "map", "base_link", tmp.path()) {
         Ok(p) => p,
@@ -76,6 +77,9 @@ fn starts_without_tf_prompt_when_ros2_static_tf_published() {
         .wait_with_timeout(Duration::from_secs(5))
         .unwrap_or_else(|| {
             run.kill();
-            panic!("termviz did not exit after Ctrl+C; output: {}", run.output.lock().unwrap());
+            panic!(
+                "termviz did not exit after Ctrl+C; output: {}",
+                run.output.lock().unwrap()
+            );
         });
 }

@@ -102,9 +102,11 @@ impl PointCloud2Listener {
         let str_ = static_frame.clone();
         let local_tf = tf.clone();
         let use_rgb = config.use_rgb.clone();
-        let _sub = ros::subscribe_pointcloud2(&config.topic, 1, move |cloud: types::PointCloud2| {
+        let _sub =
+            ros::subscribe_pointcloud2(&config.topic, 1, move |cloud: types::PointCloud2| {
                 let mut points: Vec<ColoredPoint> = Vec::new();
-                let res = local_tf.lookup_transform(&str_, &cloud.header.frame_id, cloud.header.stamp);
+                let res =
+                    local_tf.lookup_transform(&str_, &cloud.header.frame_id, cloud.header.stamp);
                 match &res {
                     Ok(res) => res,
                     Err(_e) => return,

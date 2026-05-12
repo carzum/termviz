@@ -1,7 +1,7 @@
-use crate::{config::ListenerConfigColor, transformation::ros_transform_to_isometry};
 use crate::ros;
 use crate::ros::tf::TfClient;
 use crate::ros::types;
+use crate::{config::ListenerConfigColor, transformation::ros_transform_to_isometry};
 use nalgebra::Point3;
 use std::sync::{Arc, RwLock};
 use tui::style::Color;
@@ -87,7 +87,8 @@ impl PolygonListener {
         }));
 
         let cloned_data = data.clone();
-        let sub = ros::subscribe_polygon_stamped(&config.topic, 1, move |msg: types::PolygonStamped| {
+        let sub =
+            ros::subscribe_polygon_stamped(&config.topic, 1, move |msg: types::PolygonStamped| {
                 let mut unlocked_data = cloned_data.write().unwrap();
                 unlocked_data.polygon_stamped_msg = Some(msg);
                 unlocked_data.update();

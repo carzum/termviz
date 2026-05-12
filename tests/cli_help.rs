@@ -6,5 +6,7 @@ fn help_works() {
     cmd.arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("ROS visualization on the terminal"));
+        .stdout(predicate::str::contains(
+            "ROS visualization on the terminal",
+        ));
 }

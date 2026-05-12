@@ -50,11 +50,7 @@ impl Ros2Runtime {
         match node.get_topic_names_and_types() {
             Ok(map) => map
                 .into_iter()
-                .flat_map(|(name, types)| {
-                    types
-                        .into_iter()
-                        .map(move |t| (name.clone(), t.clone()))
-                })
+                .flat_map(|(name, types)| types.into_iter().map(move |t| (name.clone(), t.clone())))
                 .collect(),
             Err(_) => Vec::new(),
         }
@@ -291,10 +287,7 @@ fn default_qos() -> r2r::QosProfile {
     r2r::QosProfile::default()
 }
 
-fn start_spinner(
-    node: Arc<Mutex<r2r::Node>>,
-    running: Arc<AtomicBool>,
-) -> thread::JoinHandle<()> {
+fn start_spinner(node: Arc<Mutex<r2r::Node>>, running: Arc<AtomicBool>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         while running.load(Ordering::Relaxed) {
             match node.lock() {
@@ -317,12 +310,13 @@ impl TfBuffer {
         }
     }
 
-    pub fn start(self: Arc<Self>, node: Arc<Mutex<r2r::Node>>) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(
+        self: Arc<Self>,
+        node: Arc<Mutex<r2r::Node>>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut node = node.lock().unwrap();
-        let mut tf_sub = node.subscribe::<r2r::tf2_msgs::msg::TFMessage>(
-            "/tf",
-            r2r::QosProfile::default(),
-        )?;
+        let mut tf_sub =
+            node.subscribe::<r2r::tf2_msgs::msg::TFMessage>("/tf", r2r::QosProfile::default())?;
         let mut tf_static_sub = node.subscribe::<r2r::tf2_msgs::msg::TFMessage>(
             "/tf_static",
             r2r::QosProfile::transient_local(r2r::QosProfile::default()),
@@ -519,7 +513,8 @@ pub fn subscribe_polygon_stamped(
     callback: impl Fn(PolygonStamped) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
     let mut node = node.lock().unwrap();
-    let mut sub = node.subscribe::<r2r::geometry_msgs::msg::PolygonStamped>(topic, default_qos())?;
+    let mut sub =
+        node.subscribe::<r2r::geometry_msgs::msg::PolygonStamped>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(msg) = sub.next().await {
             callback(PolygonStamped {
@@ -627,7 +622,8 @@ pub fn subscribe_marker_array(
     callback: impl Fn(MarkerArray) + Send + 'static,
 ) -> Result<SubscriptionHandle, Box<dyn std::error::Error>> {
     let mut node = node.lock().unwrap();
-    let mut sub = node.subscribe::<r2r::visualization_msgs::msg::MarkerArray>(topic, default_qos())?;
+    let mut sub =
+        node.subscribe::<r2r::visualization_msgs::msg::MarkerArray>(topic, default_qos())?;
     let join = tokio::spawn(async move {
         while let Some(arr) = sub.next().await {
             callback(MarkerArray {
@@ -703,10 +699,16 @@ pub struct TwistPublisher {
     inner: r2r::Publisher<r2r::geometry_msgs::msg::Twist>,
 }
 
-pub fn publish_twist(node: Arc<Mutex<r2r::Node>>, topic: &str) -> Result<TwistPublisher, Box<dyn std::error::Error>> {
+pub fn publish_twist(
+    node: Arc<Mutex<r2r::Node>>,
+    topic: &str,
+) -> Result<TwistPublisher, Box<dyn std::error::Error>> {
     let mut node = node.lock().unwrap();
     Ok(TwistPublisher {
-        inner: node.create_publisher::<r2r::geometry_msgs::msg::Twist>(topic, r2r::QosProfile::default())?,
+        inner: node.create_publisher::<r2r::geometry_msgs::msg::Twist>(
+            topic,
+            r2r::QosProfile::default(),
+        )?,
     })
 }
 
@@ -722,10 +724,14 @@ pub struct PosePublisher {
     inner: r2r::Publisher<r2r::geometry_msgs::msg::Pose>,
 }
 
-pub fn publish_pose(node: Arc<Mutex<r2r::Node>>, topic: &str) -> Result<PosePublisher, Box<dyn std::error::Error>> {
+pub fn publish_pose(
+    node: Arc<Mutex<r2r::Node>>,
+    topic: &str,
+) -> Result<PosePublisher, Box<dyn std::error::Error>> {
     let mut node = node.lock().unwrap();
     Ok(PosePublisher {
-        inner: node.create_publisher::<r2r::geometry_msgs::msg::Pose>(topic, r2r::QosProfile::default())?,
+        inner: node
+            .create_publisher::<r2r::geometry_msgs::msg::Pose>(topic, r2r::QosProfile::default())?,
     })
 }
 
@@ -745,10 +751,16 @@ pub struct PoseStampedPublisher {
     inner: r2r::Publisher<r2r::geometry_msgs::msg::PoseStamped>,
 }
 
-pub fn publish_pose_stamped(node: Arc<Mutex<r2r::Node>>, topic: &str) -> Result<PoseStampedPublisher, Box<dyn std::error::Error>> {
+pub fn publish_pose_stamped(
+    node: Arc<Mutex<r2r::Node>>,
+    topic: &str,
+) -> Result<PoseStampedPublisher, Box<dyn std::error::Error>> {
     let mut node = node.lock().unwrap();
     Ok(PoseStampedPublisher {
-        inner: node.create_publisher::<r2r::geometry_msgs::msg::PoseStamped>(topic, r2r::QosProfile::default())?,
+        inner: node.create_publisher::<r2r::geometry_msgs::msg::PoseStamped>(
+            topic,
+            r2r::QosProfile::default(),
+        )?,
     })
 }
 

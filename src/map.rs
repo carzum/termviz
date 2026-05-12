@@ -26,7 +26,8 @@ impl MapListener {
         let str_ = static_frame.clone();
         let local_tf = tf.clone();
         let threshold = config.threshold.clone();
-        let _map_sub = ros::subscribe_occupancy_grid(&config.topic, 1, move |map: types::OccupancyGrid| {
+        let _map_sub =
+            ros::subscribe_occupancy_grid(&config.topic, 1, move |map: types::OccupancyGrid| {
                 let mut points: Vec<(f64, f64)> = Vec::new();
                 let res = local_tf.lookup_transform(&str_, &map.header.frame_id, map.header.stamp);
                 match &res {

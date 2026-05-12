@@ -29,19 +29,14 @@ fn starts_without_tf_prompt_when_static_tf_published() {
         }
     };
 
-    let _tf = match support::spawn_static_tf(
-        ros_port,
-        &ros_master_uri,
-        "map",
-        "base_link",
-        tmp.path(),
-    ) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("skipping: failed to start static TF publisher: {e}");
-            return;
-        }
-    };
+    let _tf =
+        match support::spawn_static_tf(ros_port, &ros_master_uri, "map", "base_link", tmp.path()) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("skipping: failed to start static TF publisher: {e}");
+                return;
+            }
+        };
 
     let env = vec![
         ("ROS_MASTER_URI", ros_master_uri.as_str()),
@@ -84,7 +79,10 @@ fn starts_without_tf_prompt_when_static_tf_published() {
         .wait_with_timeout(Duration::from_secs(5))
         .unwrap_or_else(|| {
             run.kill();
-            panic!("termviz did not exit after Ctrl+C; output: {}", run.output.lock().unwrap());
+            panic!(
+                "termviz did not exit after Ctrl+C; output: {}",
+                run.output.lock().unwrap()
+            );
         });
 
     assert!(status.success(), "expected success exit; got {:?}", status);

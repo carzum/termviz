@@ -105,18 +105,18 @@ impl ImageListener {
         let cb_img = self.img.clone();
         let cb_rotation = self._rotation.clone();
         let sub = ros::subscribe_image(&self.config.topic, 1, move |img_msg: types::Image| {
-                let mut img = read_img_msg(img_msg).to_rgba8();
-                let rot = cb_rotation.read().unwrap();
-                match *rot {
-                    90 => img = imageops::rotate90(&img),
-                    180 => img = imageops::rotate180(&img),
-                    270 => img = imageops::rotate270(&img),
-                    _ => (),
-                }
-                let mut cb_img = cb_img.write().unwrap();
-                *cb_img = img;
-            })
-            .unwrap();
+            let mut img = read_img_msg(img_msg).to_rgba8();
+            let rot = cb_rotation.read().unwrap();
+            match *rot {
+                90 => img = imageops::rotate90(&img),
+                180 => img = imageops::rotate180(&img),
+                270 => img = imageops::rotate270(&img),
+                _ => (),
+            }
+            let mut cb_img = cb_img.write().unwrap();
+            *cb_img = img;
+        })
+        .unwrap();
         self._subscriber = Some(sub)
     }
 

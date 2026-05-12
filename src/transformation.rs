@@ -3,10 +3,7 @@ use nalgebra::Vector2;
 
 use crate::ros::types;
 
-pub fn transform_relative_pt(
-    tf: &types::Transform,
-    pt: (f64, f64),
-) -> (f64, f64) {
+pub fn transform_relative_pt(tf: &types::Transform, pt: (f64, f64)) -> (f64, f64) {
     let tra = Translation3::new(tf.translation.x, tf.translation.y, tf.translation.z);
     let rot = UnitQuaternion::new_normalize(Quaternion::new(
         tf.rotation.w,

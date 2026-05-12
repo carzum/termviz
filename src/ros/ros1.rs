@@ -133,7 +133,11 @@ impl Ros1Runtime {
         Ok(subscribe_path(topic, queue, callback))
     }
 
-    pub fn publish_twist(&self, topic: &str, queue: usize) -> Result<TwistPublisher, Box<dyn Error>> {
+    pub fn publish_twist(
+        &self,
+        topic: &str,
+        queue: usize,
+    ) -> Result<TwistPublisher, Box<dyn Error>> {
         Ok(publish_twist(topic, queue))
     }
 
@@ -246,21 +250,25 @@ pub fn subscribe_laserscan(
     queue: usize,
     callback: impl Fn(LaserScan) + Send + 'static,
 ) -> SubscriptionHandle {
-    rosrust::subscribe(topic, queue, move |scan: rosrust_msg::sensor_msgs::LaserScan| {
-        callback(LaserScan {
-            header: Header {
-                frame_id: scan.header.frame_id,
-                stamp: Time {
-                    sec: scan.header.stamp.sec as i64,
-                    nsec: scan.header.stamp.nsec,
+    rosrust::subscribe(
+        topic,
+        queue,
+        move |scan: rosrust_msg::sensor_msgs::LaserScan| {
+            callback(LaserScan {
+                header: Header {
+                    frame_id: scan.header.frame_id,
+                    stamp: Time {
+                        sec: scan.header.stamp.sec as i64,
+                        nsec: scan.header.stamp.nsec,
+                    },
                 },
-            },
-            angle_min: scan.angle_min,
-            angle_increment: scan.angle_increment,
-            ranges: scan.ranges,
-            range_min: scan.range_min,
-        })
-    })
+                angle_min: scan.angle_min,
+                angle_increment: scan.angle_increment,
+                ranges: scan.ranges,
+                range_min: scan.range_min,
+            })
+        },
+    )
     .unwrap()
 }
 
@@ -269,36 +277,40 @@ pub fn subscribe_occupancy_grid(
     queue: usize,
     callback: impl Fn(OccupancyGrid) + Send + 'static,
 ) -> SubscriptionHandle {
-    rosrust::subscribe(topic, queue, move |map: rosrust_msg::nav_msgs::OccupancyGrid| {
-        callback(OccupancyGrid {
-            header: Header {
-                frame_id: map.header.frame_id,
-                stamp: Time {
-                    sec: map.header.stamp.sec as i64,
-                    nsec: map.header.stamp.nsec,
-                },
-            },
-            info: MapMetaData {
-                resolution: map.info.resolution,
-                width: map.info.width,
-                height: map.info.height,
-                origin: Pose {
-                    position: Point {
-                        x: map.info.origin.position.x,
-                        y: map.info.origin.position.y,
-                        z: map.info.origin.position.z,
-                    },
-                    orientation: Quaternion {
-                        x: map.info.origin.orientation.x,
-                        y: map.info.origin.orientation.y,
-                        z: map.info.origin.orientation.z,
-                        w: map.info.origin.orientation.w,
+    rosrust::subscribe(
+        topic,
+        queue,
+        move |map: rosrust_msg::nav_msgs::OccupancyGrid| {
+            callback(OccupancyGrid {
+                header: Header {
+                    frame_id: map.header.frame_id,
+                    stamp: Time {
+                        sec: map.header.stamp.sec as i64,
+                        nsec: map.header.stamp.nsec,
                     },
                 },
-            },
-            data: map.data,
-        })
-    })
+                info: MapMetaData {
+                    resolution: map.info.resolution,
+                    width: map.info.width,
+                    height: map.info.height,
+                    origin: Pose {
+                        position: Point {
+                            x: map.info.origin.position.x,
+                            y: map.info.origin.position.y,
+                            z: map.info.origin.position.z,
+                        },
+                        orientation: Quaternion {
+                            x: map.info.origin.orientation.x,
+                            y: map.info.origin.orientation.y,
+                            z: map.info.origin.orientation.z,
+                            w: map.info.origin.orientation.w,
+                        },
+                    },
+                },
+                data: map.data,
+            })
+        },
+    )
     .unwrap()
 }
 
@@ -402,9 +414,11 @@ pub fn subscribe_marker(
     queue: usize,
     callback: impl Fn(Marker) + Send + 'static,
 ) -> SubscriptionHandle {
-    rosrust::subscribe(topic, queue, move |msg: rosrust_msg::visualization_msgs::Marker| {
-        callback(convert_marker(msg))
-    })
+    rosrust::subscribe(
+        topic,
+        queue,
+        move |msg: rosrust_msg::visualization_msgs::Marker| callback(convert_marker(msg)),
+    )
     .unwrap()
 }
 

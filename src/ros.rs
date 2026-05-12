@@ -14,8 +14,8 @@ pub mod ros1;
 pub mod ros2;
 
 use serde::de::DeserializeOwned;
-use std::error::Error;
 use std::cell::RefCell;
+use std::error::Error;
 use std::sync::Arc;
 
 #[cfg(feature = "ros1")]

@@ -286,7 +286,11 @@ fn parse_cube_msg(
     if center_offset_msg.is_none() {
         return parse_cube(
             &msg.scale,
-            &types::Point { x: 0.0, y: 0.0, z: 0.0 },
+            &types::Point {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
             color,
             iso,
         );
@@ -475,10 +479,7 @@ fn parse_sphere_msg(
     lines
 }
 
-fn parse_marker_msg(
-    msg: &types::Marker,
-    tf: &types::Transform,
-) -> TermvizMarker {
+fn parse_marker_msg(msg: &types::Marker, tf: &types::Transform) -> TermvizMarker {
     let trans_marker_to_static_frame = ros_transform_to_isometry(tf);
     let trans_to_marker = ros_pose_to_isometry(&msg.pose);
 
@@ -520,10 +521,7 @@ struct TermvizMarkerContainer {
 }
 
 impl TermvizMarkerContainer {
-    pub fn new(
-        tf: Arc<dyn TfClient>,
-        static_frame: String,
-    ) -> TermvizMarkerContainer {
+    pub fn new(tf: Arc<dyn TfClient>, static_frame: String) -> TermvizMarkerContainer {
         Self {
             markers: HashMap::<String, HashMap<i32, TermvizMarker>>::new(),
             static_frame: static_frame,
@@ -730,16 +728,16 @@ impl MarkersListener {
         let markers_container_ref = self.markers_lifecycle.clone();
 
         let sub = ros::subscribe_marker(&config.topic, 2, move |msg: types::Marker| {
-                let mut markers_container = markers_container_ref.write().unwrap();
+            let mut markers_container = markers_container_ref.write().unwrap();
 
-                match msg.action {
-                    types::Marker::ADD => markers_container.add_marker(&msg),
-                    types::Marker::DELETE => markers_container.delete_marker(msg.ns.clone(), msg.id),
-                    types::Marker::DELETEALL => markers_container.clear(),
-                    _ => return,
-                }
-            })
-            .unwrap();
+            match msg.action {
+                types::Marker::ADD => markers_container.add_marker(&msg),
+                types::Marker::DELETE => markers_container.delete_marker(msg.ns.clone(), msg.id),
+                types::Marker::DELETEALL => markers_container.clear(),
+                _ => return,
+            }
+        })
+        .unwrap();
 
         self.subscribers.push(sub);
     }
@@ -752,20 +750,22 @@ impl MarkersListener {
         let markers_container_ref = self.markers_lifecycle.clone();
 
         let sub = ros::subscribe_marker_array(&config.topic, 2, move |msg: types::MarkerArray| {
-                let mut markers_container = markers_container_ref.write().unwrap();
+            let mut markers_container = markers_container_ref.write().unwrap();
 
-                for marker in msg.markers {
-                    match marker.action {
-                        types::Marker::ADD => markers_container.add_marker(&marker),
-                        types::Marker::DELETE => {
-                            markers_container.delete_marker(marker.ns.clone(), marker.id)
-                        }
-                        types::Marker::DELETEALL => markers_container.clear_namespace(marker.ns.clone()),
-                        _ => continue,
+            for marker in msg.markers {
+                match marker.action {
+                    types::Marker::ADD => markers_container.add_marker(&marker),
+                    types::Marker::DELETE => {
+                        markers_container.delete_marker(marker.ns.clone(), marker.id)
                     }
+                    types::Marker::DELETEALL => {
+                        markers_container.clear_namespace(marker.ns.clone())
+                    }
+                    _ => continue,
                 }
-            })
-            .unwrap();
+            }
+        })
+        .unwrap();
 
         self.subscribers.push(sub);
     }

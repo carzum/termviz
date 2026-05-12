@@ -81,7 +81,7 @@ jobs:
         # do agree on 'cat' and '$()' so we use that to marshal values between commmands.
         run: |
           # Actually do builds and make zips and whatnot
-          ROSRUST_MSG_PATH=/usr/share/ cargo dist --target=${{ matrix.target }} --output-format=json > dist-manifest.json
+          ROSRUST_MSG_PATH=/usr/share/ cargo dist --features ros1 --target=${{ matrix.target }} --output-format=json > dist-manifest.json
           echo "dist ran successfully"
           cat dist-manifest.json
           # Parse out what we just built and upload it to the Github Release™️
@@ -106,7 +106,7 @@ jobs:
       - name: Run cargo-dist manifest
         run: |
           # Generate a manifest describing everything
-          cargo dist manifest --no-local-paths --output-format=json $ALL_CARGO_DIST_TARGET_ARGS $ALL_CARGO_DIST_INSTALLER_ARGS > dist-manifest.json
+          cargo dist manifest --features ros1 --no-local-paths --output-format=json $ALL_CARGO_DIST_TARGET_ARGS $ALL_CARGO_DIST_INSTALLER_ARGS > dist-manifest.json
           echo "dist manifest ran successfully"
           cat dist-manifest.json
           # Upload the manifest to the Github Release™️
@@ -129,4 +129,3 @@ jobs:
       - name: mark release as non-draft
         run: |
           gh release edit ${{ needs.create-release.outputs.tag }} --draft=false
-

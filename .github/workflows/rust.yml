@@ -2,7 +2,6 @@ name: Rust
 
 on:
   push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -22,6 +21,6 @@ jobs:
     - name: install ROS messages
       run: sudo apt install ros-geometry-msgs ros-visualization-msgs ros-sensor-msgs ros-nav-msgs ros-tf2-msgs
     - name: Build
-      run: ROSRUST_MSG_PATH=/usr/share/ cargo build --verbose
+      run: ROSRUST_MSG_PATH=/usr/share/ cargo build --features ros1 --verbose
     - name: Run tests
-      run: ROSRUST_MSG_PATH=/usr/share/ cargo test --verbose
+      run: ROSRUST_MSG_PATH=/usr/share/ cargo test --features ros1 --verbose

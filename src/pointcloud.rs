@@ -1,4 +1,7 @@
 use crate::config::PointCloud2ListenerConfig;
+use crate::ros;
+use crate::ros::tf::TfClient;
+use crate::ros::types;
 use byteorder::{ByteOrder, LittleEndian};
 use colorgrad::Gradient;
 use std::sync::{Arc, RwLock};
@@ -7,14 +10,12 @@ use nalgebra::geometry::Point3;
 use tui::style::Color;
 
 use crate::transformation::ros_transform_to_isometry;
-use rosrust;
-use rustros_tf;
 
 pub struct PointCloud2Listener {
     pub points: Arc<RwLock<Vec<ColoredPoint>>>,
-    _tf_listener: Arc<rustros_tf::TfListener>,
+    _tf: Arc<dyn TfClient>,
     _static_frame: String,
-    _subscriber: rosrust::Subscriber,
+    _subscriber: ros::SubscriptionHandle,
 }
 
 #[derive(Clone)]
@@ -32,7 +33,7 @@ impl ColoredPoint {
     }
 }
 
-pub fn get_channel_offset(name: &str, fields: &Vec<rosrust_msg::sensor_msgs::PointField>) -> u32 {
+pub fn get_channel_offset(name: &str, fields: &Vec<types::PointField>) -> u32 {
     for field in fields {
         if field.name == name {
             return field.offset;
@@ -45,7 +46,7 @@ pub fn read_f32(bytes: &Vec<u8>, idx: u32) -> f32 {
     LittleEndian::read_f32(&bytes[idx as usize..(idx + 4) as usize])
 }
 
-pub fn read_xyz(msg: &rosrust_msg::sensor_msgs::PointCloud2) -> Vec<Point3<f64>> {
+pub fn read_xyz(msg: &types::PointCloud2) -> Vec<Point3<f64>> {
     let n_pts = msg.width * msg.height;
     let mut points: Vec<Point3<f64>> = Vec::with_capacity(n_pts as usize);
     let x_offset = get_channel_offset("x", &msg.fields);
@@ -64,7 +65,7 @@ pub fn read_xyz(msg: &rosrust_msg::sensor_msgs::PointCloud2) -> Vec<Point3<f64>>
 
 pub fn colorize_from_rgb(
     mut points: Vec<ColoredPoint>,
-    msg: &rosrust_msg::sensor_msgs::PointCloud2,
+    msg: &types::PointCloud2,
 ) -> Vec<ColoredPoint> {
     let n_pts = msg.width * msg.height;
     let rgb_offset = get_channel_offset("rgb", &msg.fields);
@@ -93,24 +94,17 @@ pub fn colorize_points(mut points: Vec<ColoredPoint>, min_z: f64, max_z: f64) ->
 impl PointCloud2Listener {
     pub fn new(
         config: PointCloud2ListenerConfig,
-        tf_listener: Arc<rustros_tf::TfListener>,
+        tf: Arc<dyn TfClient>,
         static_frame: String,
     ) -> PointCloud2Listener {
         let occ_points = Arc::new(RwLock::new(Vec::<ColoredPoint>::new()));
         let cb_occ_points = occ_points.clone();
         let str_ = static_frame.clone();
-        let local_listener = tf_listener.clone();
+        let local_tf = tf.clone();
         let use_rgb = config.use_rgb.clone();
-        let _sub = rosrust::subscribe(
-            &config.topic,
-            1,
-            move |cloud: rosrust_msg::sensor_msgs::PointCloud2| {
+        let _sub = ros::subscribe_pointcloud2(&config.topic, 1, move |cloud: types::PointCloud2| {
                 let mut points: Vec<ColoredPoint> = Vec::new();
-                let res = local_listener.clone().lookup_transform(
-                    &str_,
-                    &cloud.header.frame_id,
-                    cloud.header.stamp,
-                );
+                let res = local_tf.lookup_transform(&str_, &cloud.header.frame_id, cloud.header.stamp);
                 match &res {
                     Ok(res) => res,
                     Err(_e) => return,
@@ -140,13 +134,12 @@ impl PointCloud2Listener {
                     .collect::<Vec<_>>();
                 let mut cb_occ_points = cb_occ_points.write().unwrap();
                 *cb_occ_points = points;
-            },
-        )
-        .unwrap();
+            })
+            .unwrap();
 
         PointCloud2Listener {
             points: occ_points,
-            _tf_listener: tf_listener,
+            _tf: tf,
             _static_frame: static_frame.to_string(),
             _subscriber: _sub,
         }

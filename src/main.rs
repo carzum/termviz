@@ -10,6 +10,7 @@ mod marker;
 mod pointcloud;
 mod polygon;
 mod pose;
+mod ros;
 mod transformation;
 use futures::{future::FutureExt, select, StreamExt};
 use futures_timer::Delay;
@@ -26,8 +27,6 @@ use crossterm::{
     terminal::{disable_raw_mode, LeaveAlternateScreen},
 };
 use dialoguer::Confirm;
-use rosrust;
-use rustros_tf::TfListener;
 use std::error::Error;
 
 #[tokio::main]
@@ -56,7 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let conf = config::get_config(matches.get_one("config"))?;
 
     println!("Connecting to ROS...");
-    rosrust::init("termviz");
+    ros::init("termviz")?;
 
     let mut key_to_input: HashMap<KeyCode, String> = conf
         .key_mapping
@@ -75,8 +74,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         );
     }
 
-    println!("Starting TF listener");
-    let listener = Arc::new(TfListener::new());
+    let tf = ros::tf_client();
 
     // rustros_tf has no option for a timeout, so we have to do it manually.
     let mut passed_time = std::time::Duration::ZERO;
@@ -85,8 +83,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Waiting up to {}s for robot pose...", max_time.as_secs());
     let robot_pose_available = loop {
-        if listener
-            .lookup_transform(&conf.fixed_frame, &conf.robot_frame, rosrust::Time::new())
+        if tf
+            .lookup_transform(&conf.fixed_frame, &conf.robot_frame, ros::now())
             .is_ok()
         {
             break true;
@@ -117,7 +115,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let rate = Duration::from_millis(1000 / conf.target_framerate as u64);
 
-    let default_app_config = Arc::new(Mutex::new(app::App::new(listener.clone(), conf)));
+    let default_app_config = Arc::new(Mutex::new(app::App::new(tf.clone(), conf)));
 
     let mut running_app = default_app_config.lock().unwrap();
 

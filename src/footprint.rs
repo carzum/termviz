@@ -1,7 +1,7 @@
 use crate::transformation;
 
-use rosrust;
-use rosrust_msg;
+use crate::ros;
+use crate::ros::types;
 
 const DEFAULT_FOOTPRINT: [[f64; 2]; 4] =
     [[0.01, 0.01], [-0.01, 0.01], [-0.01, -0.01], [0.01, -0.01]];
@@ -15,27 +15,18 @@ pub fn get_default_footprint() -> Vec<(f64, f64)> {
 }
 
 pub fn get_footprint() -> Vec<(f64, f64)> {
-    let param = rosrust::param("/footprint");
+    let param: Option<Vec<Vec<f64>>> = ros::param_get("/footprint");
     let mut result = Vec::<(f64, f64)>::new();
     match param {
-        Some(footprint) => {
-            let fb = footprint.get::<Vec<Vec<f64>>>();
-            match fb {
-                Ok(f) => {
-                    for pt in f {
-                        result.push((pt[0], pt[1]));
-                    }
-                    if result.is_empty() {
-                        println!("/footprint is empty, using default footprint.");
-                        return get_default_footprint();
-                    }
-                    result
-                }
-                Err(_e) => {
-                    println!("/footprint not found, using default footprint.");
-                    get_default_footprint()
-                }
+        Some(f) => {
+            for pt in f {
+                result.push((pt[0], pt[1]));
             }
+            if result.is_empty() {
+                println!("/footprint is empty, using default footprint.");
+                return get_default_footprint();
+            }
+            result
         }
         None => {
             println!("/footprint not found, using default footprint.");
@@ -45,7 +36,7 @@ pub fn get_footprint() -> Vec<(f64, f64)> {
 }
 
 pub fn get_current_footprint(
-    tf: &rosrust_msg::geometry_msgs::Transform,
+    tf: &types::Transform,
     footprint_poly: &Vec<(f64, f64)>,
 ) -> Vec<(f64, f64, f64, f64)> {
     let mut result: Vec<(f64, f64, f64, f64)> = Vec::new();

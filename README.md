@@ -24,10 +24,27 @@ Get the source code:
 git clone git@github.com:carzum/termviz.git
 ```
 
-Build the project via cargo:
-```bash
-cargo build --release
-```
+### ROS1 / ROS2 feature flags
+
+TermViz does not enable a ROS backend by default. You must select exactly one backend feature: `ros1` or `ros2`.
+
+- ROS1 build (explicit):
+  ```bash
+  cargo build --release --features ros1
+  ```
+- ROS2 build:
+  - Ensure you have a ROS2 environment sourced (e.g. `source /opt/ros/<distro>/setup.bash`) so `ROS_DISTRO` is a ROS2 distro (not `noetic`).
+  - Then build with:
+    ```bash
+    cargo build --release --features ros2
+    ```
+
+Repo-local Cargo aliases are also available:
+
+- ROS1: `cargo build-ros1`, `cargo run-ros1`, `cargo test-ros1`
+- ROS2: `cargo build-ros2`, `cargo run-ros2`, `cargo test-ros2`
+
+Note: for some ROS1 setups you may need `ROSRUST_MSG_PATH=/usr/share/` when building.
 
 After the build succeeded, the executable will be located in `target/release/` and can be used directly. No external libraries are needed, so it can be copied directly on a robot or another computer.
 
@@ -35,9 +52,10 @@ After the build succeeded, the executable will be located in `target/release/` a
 
 To launch the visualizer, just run the `termviz` executable.
 
-The program looks for a configuration file named `termviz.yml` in `~/.config/termviz/` first, then in `/etc/termviz/`. If the file is not found, it prompts the user to create a default one. Alternatively, it is possible to pass a configuration file directly to the executable: `termviz <myconfig>.yml`.
 
-The program requires a running ROS master and an available TF between the robot frame (`base_link` by default) and a static frame (`map` by default). If the ROS parameter `/footprint`, it will be used to show the footprint of the robot.
+The program looks for a configuration file named `termviz.yml` in `~/.config/termviz/` first, then in `/etc/termviz/`. If no config is found, it starts with sensible defaults. If an existing config is missing newer fields (from a newer TermViz version), those fields are filled from defaults so older configs keep working. When no custom config path is provided, TermViz will persist the (possibly updated) config to `~/.config/termviz/termviz.yml` so future runs use the same settings. You may also pass a configuration file directly: `termviz <myconfig>.yml`.
+
+The program requires a running ROS master and an available TF between the robot frame (`base_link` by default) and a static frame (`map` by default). If the ROS parameter `/footprint` is present, its polygon will be used to show the robot footprint.
 
 Pressing `h` shows the help screen, which will describe the current mode and the keymap relative to the current mode. The mode can be switched using the number keys and the help screen will update accordingly.
 
@@ -155,3 +173,33 @@ teleop:                        # Parameters for the Teleoperate mode.
 - Carsten Zumsande (termviz@zumsande.eu)
 - Emanuele Palazzolo (emanuele.palazzolo@gmail.com)
 - Michael März (michael0maerz@gmail.com)
+
+
+## Integration tests
+
+This repository includes black-box integration tests under `tests/`.
+
+Requirements for ROS-gated tests
+- `roscore` and `rosrun` must be available in `PATH` (ROS1/Noetic or compatible).
+- Tests will create short-lived ROS processes and temporary log directories.
+
+Running the tests
+
+```bash
+cargo test --features ros1
+```
+
+Run only the CLI/help test:
+
+```bash
+cargo test --features ros1 --test cli_help
+```
+
+Enable and run ROS-gated tests (local ROS install required):
+
+```bash
+TERMVIZ_IT_ROS=1 cargo test --features ros1
+```
+
+CI notes
+- To run ROS-gated tests in CI, use a runner image that contains ROS (Noetic) and ensure `roscore`/`rosrun` are in `PATH`. Set `TERMVIZ_IT_ROS=1` in the job environment. Add `--test-threads=1` if tests interfere with each other in your CI environment.

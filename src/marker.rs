@@ -4,15 +4,17 @@
 //! This module allows to subsribe to topics that publish them and project them into the
 //! 2D plane. Finally, it takes care of their lifecycle: ADD, DELETE and timeout.
 use crate::config::ListenerConfig;
+use crate::ros;
+use crate::ros::tf::TfClient;
+use crate::ros::types;
+use crate::transformation::{ros_pose_to_isometry, ros_transform_to_isometry};
 use nalgebra::base::Vector3;
 use nalgebra::geometry::Isometry3;
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::sync::{Arc, Mutex, RwLock};
 
-use rosrust;
-use rustros_tf::transforms::nalgebra::geometry::Point3;
-use rustros_tf::transforms::{isometry_from_pose, isometry_from_transform};
+use nalgebra::geometry::Point3;
 
 use tui::style::Color;
 use tui::widgets::canvas::Line;
@@ -59,8 +61,8 @@ fn from_point_strips(strips: &Vec<Vec<Point3<f64>>>, color: &Color) -> Vec<Line>
 /// - `color`: Color of the cube.
 /// - `iso`: Base transformation of the cube.
 fn parse_cube(
-    dimension: &rosrust_msg::geometry_msgs::Vector3,
-    offset: &rosrust_msg::geometry_msgs::Point,
+    dimension: &types::Vector3,
+    offset: &types::Point,
     color: &tui::style::Color,
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
@@ -181,7 +183,7 @@ fn parse_cube(
 }
 
 fn parse_arrow_msg(
-    msg: &rosrust_msg::visualization_msgs::Marker,
+    msg: &types::Marker,
     color: &tui::style::Color,
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
@@ -276,7 +278,7 @@ fn parse_arrow_msg(
 }
 
 fn parse_cube_msg(
-    msg: &rosrust_msg::visualization_msgs::Marker,
+    msg: &types::Marker,
     color: &tui::style::Color,
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
@@ -284,11 +286,7 @@ fn parse_cube_msg(
     if center_offset_msg.is_none() {
         return parse_cube(
             &msg.scale,
-            &rosrust_msg::geometry_msgs::Point {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-            },
+            &types::Point { x: 0.0, y: 0.0, z: 0.0 },
             color,
             iso,
         );
@@ -297,7 +295,7 @@ fn parse_cube_msg(
 }
 
 fn parse_cube_list_msg(
-    msg: &rosrust_msg::visualization_msgs::Marker,
+    msg: &types::Marker,
     color: &tui::style::Color,
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
@@ -311,7 +309,7 @@ fn parse_cube_list_msg(
 }
 
 fn parse_points_msg(
-    msg: &rosrust_msg::visualization_msgs::Marker,
+    msg: &types::Marker,
     color: &tui::style::Color,
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
@@ -319,7 +317,7 @@ fn parse_points_msg(
 }
 
 fn parse_line_strip_msg(
-    msg: &rosrust_msg::visualization_msgs::Marker,
+    msg: &types::Marker,
     color: &tui::style::Color,
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
@@ -333,7 +331,7 @@ fn parse_line_strip_msg(
 }
 
 fn parse_line_list_msg(
-    msg: &rosrust_msg::visualization_msgs::Marker,
+    msg: &types::Marker,
     color: &tui::style::Color,
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
@@ -370,7 +368,7 @@ fn parse_line_list_msg(
 }
 
 fn parse_sphere_msg(
-    msg: &rosrust_msg::visualization_msgs::Marker,
+    msg: &types::Marker,
     color: &tui::style::Color,
     iso: &Isometry3<f64>,
 ) -> Vec<Line> {
@@ -478,11 +476,11 @@ fn parse_sphere_msg(
 }
 
 fn parse_marker_msg(
-    msg: &rosrust_msg::visualization_msgs::Marker,
-    tf: &rosrust_msg::geometry_msgs::Transform,
+    msg: &types::Marker,
+    tf: &types::Transform,
 ) -> TermvizMarker {
-    let trans_marker_to_static_frame = isometry_from_transform(tf);
-    let trans_to_marker = isometry_from_pose(&msg.pose);
+    let trans_marker_to_static_frame = ros_transform_to_isometry(tf);
+    let trans_to_marker = ros_pose_to_isometry(&msg.pose);
 
     let iso = trans_marker_to_static_frame.inverse() * trans_to_marker;
 
@@ -492,20 +490,14 @@ fn parse_marker_msg(
         (msg.color.b * 255.0) as u8,
     );
 
-    let res = match msg.type_ as u8 {
-        rosrust_msg::visualization_msgs::Marker::ARROW => parse_arrow_msg(msg, &color, &iso),
-        rosrust_msg::visualization_msgs::Marker::CUBE => parse_cube_msg(msg, &color, &iso),
-        rosrust_msg::visualization_msgs::Marker::CUBE_LIST => {
-            parse_cube_list_msg(msg, &color, &iso)
-        }
-        rosrust_msg::visualization_msgs::Marker::POINTS => parse_points_msg(msg, &color, &iso),
-        rosrust_msg::visualization_msgs::Marker::LINE_STRIP => {
-            parse_line_strip_msg(msg, &color, &iso)
-        }
-        rosrust_msg::visualization_msgs::Marker::LINE_LIST => {
-            parse_line_list_msg(msg, &color, &iso)
-        }
-        rosrust_msg::visualization_msgs::Marker::SPHERE => parse_sphere_msg(msg, &color, &iso),
+    let res = match msg.type_ {
+        types::Marker::ARROW => parse_arrow_msg(msg, &color, &iso),
+        types::Marker::CUBE => parse_cube_msg(msg, &color, &iso),
+        types::Marker::CUBE_LIST => parse_cube_list_msg(msg, &color, &iso),
+        types::Marker::POINTS => parse_points_msg(msg, &color, &iso),
+        types::Marker::LINE_STRIP => parse_line_strip_msg(msg, &color, &iso),
+        types::Marker::LINE_LIST => parse_line_list_msg(msg, &color, &iso),
+        types::Marker::SPHERE => parse_sphere_msg(msg, &color, &iso),
         _ => Vec::new(),
     };
 
@@ -524,23 +516,23 @@ fn parse_marker_msg(
 struct TermvizMarkerContainer {
     markers: HashMap<String, HashMap<i32, TermvizMarker>>,
     static_frame: String,
-    tf_listener: Arc<rustros_tf::TfListener>,
+    tf: Arc<dyn TfClient>,
 }
 
 impl TermvizMarkerContainer {
     pub fn new(
-        tf_listener: Arc<rustros_tf::TfListener>,
+        tf: Arc<dyn TfClient>,
         static_frame: String,
     ) -> TermvizMarkerContainer {
         Self {
             markers: HashMap::<String, HashMap<i32, TermvizMarker>>::new(),
             static_frame: static_frame,
-            tf_listener: tf_listener,
+            tf,
         }
     }
 
-    fn add_marker(&mut self, marker: &rosrust_msg::visualization_msgs::Marker) {
-        let transform = &self.tf_listener.clone().lookup_transform(
+    fn add_marker(&mut self, marker: &types::Marker) {
+        let transform = &self.tf.lookup_transform(
             &marker.header.frame_id,
             &self.static_frame.clone(),
             marker.header.stamp,
@@ -646,11 +638,11 @@ impl MarkersLifecycle {
         }
     }
 
-    fn add_marker(&mut self, marker: &rosrust_msg::visualization_msgs::Marker) {
+    fn add_marker(&mut self, marker: &types::Marker) {
         self.markers_container.write().unwrap().add_marker(marker);
 
         // Handle marker lifecycle
-        if marker.lifetime.seconds() == 0.0 {
+        if marker.lifetime.sec == 0 && marker.lifetime.nsec == 0 {
             return;
         }
 
@@ -712,12 +704,12 @@ impl MarkersLifecycle {
 
 pub struct MarkersListener {
     markers_lifecycle: Arc<RwLock<MarkersLifecycle>>,
-    subscribers: Vec<Arc<Mutex<rosrust::Subscriber>>>,
+    subscribers: Vec<ros::SubscriptionHandle>,
 }
 
 impl MarkersListener {
-    pub fn new(tf_listener: Arc<rustros_tf::TfListener>, static_frame: String) -> MarkersListener {
-        let marker_container = TermvizMarkerContainer::new(tf_listener, static_frame);
+    pub fn new(tf: Arc<dyn TfClient>, static_frame: String) -> MarkersListener {
+        let marker_container = TermvizMarkerContainer::new(tf, static_frame);
         Self {
             markers_lifecycle: Arc::new(RwLock::new(MarkersLifecycle::new(marker_container))),
             subscribers: Vec::new(),
@@ -737,26 +729,19 @@ impl MarkersListener {
     pub fn add_marker_listener(&mut self, config: &ListenerConfig) {
         let markers_container_ref = self.markers_lifecycle.clone();
 
-        let sub = rosrust::subscribe(
-            &config.topic,
-            2,
-            move |msg: rosrust_msg::visualization_msgs::Marker| {
+        let sub = ros::subscribe_marker(&config.topic, 2, move |msg: types::Marker| {
                 let mut markers_container = markers_container_ref.write().unwrap();
 
-                match msg.action as u8 {
-                    rosrust_msg::visualization_msgs::Marker::ADD => {
-                        markers_container.add_marker(&msg)
-                    }
-                    rosrust_msg::visualization_msgs::Marker::DELETE => {
-                        markers_container.delete_marker(msg.ns.clone(), msg.id)
-                    }
-                    rosrust_msg::visualization_msgs::Marker::DELETEALL => markers_container.clear(),
+                match msg.action {
+                    types::Marker::ADD => markers_container.add_marker(&msg),
+                    types::Marker::DELETE => markers_container.delete_marker(msg.ns.clone(), msg.id),
+                    types::Marker::DELETEALL => markers_container.clear(),
                     _ => return,
                 }
-            },
-        );
+            })
+            .unwrap();
 
-        self.subscribers.push(Arc::new(Mutex::new(sub.unwrap())));
+        self.subscribers.push(sub);
     }
 
     /// Adds a subscriber for a marker array message topic.
@@ -766,29 +751,22 @@ impl MarkersListener {
     pub fn add_marker_array_listener(&mut self, config: &ListenerConfig) {
         let markers_container_ref = self.markers_lifecycle.clone();
 
-        let sub = rosrust::subscribe(
-            &config.topic,
-            2,
-            move |msg: rosrust_msg::visualization_msgs::MarkerArray| {
+        let sub = ros::subscribe_marker_array(&config.topic, 2, move |msg: types::MarkerArray| {
                 let mut markers_container = markers_container_ref.write().unwrap();
 
                 for marker in msg.markers {
-                    match marker.action as u8 {
-                        rosrust_msg::visualization_msgs::Marker::ADD => {
-                            markers_container.add_marker(&marker)
-                        }
-                        rosrust_msg::visualization_msgs::Marker::DELETE => {
+                    match marker.action {
+                        types::Marker::ADD => markers_container.add_marker(&marker),
+                        types::Marker::DELETE => {
                             markers_container.delete_marker(marker.ns.clone(), marker.id)
                         }
-                        rosrust_msg::visualization_msgs::Marker::DELETEALL => {
-                            markers_container.clear_namespace(marker.ns.clone())
-                        }
+                        types::Marker::DELETEALL => markers_container.clear_namespace(marker.ns.clone()),
                         _ => continue,
                     }
                 }
-            },
-        );
+            })
+            .unwrap();
 
-        self.subscribers.push(Arc::new(Mutex::new(sub.unwrap())));
+        self.subscribers.push(sub);
     }
 }

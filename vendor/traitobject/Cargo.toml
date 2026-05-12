@@ -1,0 +1,10 @@
+[package]
+name = "traitobject"
+version = "0.1.0"
+authors = ["Ian Henderson <ian@iank.io>"]
+description = "Unsafe helpers for working with raw TraitObjects"
+license = "MIT/Apache-2.0"
+
+[lib]
+name = "traitobject"
+path = "src/lib.rs"

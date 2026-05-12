@@ -4,6 +4,8 @@ use crate::app_modes::viewport::{UseViewport, Viewport};
 use crate::app_modes::{input, AppMode, BaseMode};
 use crate::config::SendPoseConfig;
 use crate::footprint::get_current_footprint;
+use crate::ros;
+use crate::ros::types;
 use crate::transformation;
 use approx::AbsDiffEq;
 use nalgebra::{Isometry2, Vector2};
@@ -15,19 +17,19 @@ use tui::widgets::canvas::{Context, Line};
 
 trait BasePosePubWrapper {
     fn get_topic(&self) -> &String;
-    fn send(&self, msg: rosrust_msg::geometry_msgs::Pose, frame_id: String);
+    fn send(&self, pose: types::Pose, frame_id: String);
 }
 
 struct PosePubWrapper {
     topic: String,
-    publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::Pose>,
+    publisher: ros::PosePublisher,
 }
 
 impl PosePubWrapper {
     pub fn new(topic: &String) -> PosePubWrapper {
         PosePubWrapper {
             topic: topic.clone(),
-            publisher: rosrust::publish(&topic, 1).unwrap(),
+            publisher: ros::publish_pose(topic, 1).unwrap(),
         }
     }
 }
@@ -37,21 +39,21 @@ impl BasePosePubWrapper for PosePubWrapper {
         &self.topic
     }
 
-    fn send(&self, msg: rosrust_msg::geometry_msgs::Pose, _frame_id: String) {
-        self.publisher.send(msg).unwrap();
+    fn send(&self, pose: types::Pose, _frame_id: String) {
+        ros::send_pose(&self.publisher, pose);
     }
 }
 
 struct PoseStampedPubWrapper {
     topic: String,
-    publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::PoseStamped>,
+    publisher: ros::PoseStampedPublisher,
 }
 
 impl PoseStampedPubWrapper {
     pub fn new(topic: &String) -> PoseStampedPubWrapper {
         PoseStampedPubWrapper {
             topic: topic.clone(),
-            publisher: rosrust::publish(&topic, 1).unwrap(),
+            publisher: ros::publish_pose_stamped(topic, 1).unwrap(),
         }
     }
 }
@@ -61,30 +63,21 @@ impl BasePosePubWrapper for PoseStampedPubWrapper {
         &self.topic
     }
 
-    fn send(&self, msg: rosrust_msg::geometry_msgs::Pose, frame_id: String) {
-        let mut msg_stamped = rosrust_msg::geometry_msgs::PoseStamped::default();
-        msg_stamped.header.frame_id = frame_id;
-        msg_stamped.pose.orientation.x = msg.orientation.x;
-        msg_stamped.pose.orientation.y = msg.orientation.y;
-        msg_stamped.pose.orientation.z = msg.orientation.z;
-        msg_stamped.pose.orientation.w = msg.orientation.w;
-        msg_stamped.pose.position.x = msg.position.x;
-        msg_stamped.pose.position.y = msg.position.y;
-        msg_stamped.pose.position.z = 0.0;
-        self.publisher.send(msg_stamped).unwrap();
+    fn send(&self, pose: types::Pose, frame_id: String) {
+        ros::send_pose_stamped(&self.publisher, pose, frame_id);
     }
 }
 
 struct PoseCovPubWrapper {
     topic: String,
-    publisher: rosrust::Publisher<rosrust_msg::geometry_msgs::PoseWithCovarianceStamped>,
+    publisher: ros::PoseWithCovStampedPublisher,
 }
 
 impl PoseCovPubWrapper {
     pub fn new(topic: &String) -> PoseCovPubWrapper {
         PoseCovPubWrapper {
             topic: topic.clone(),
-            publisher: rosrust::publish(&topic, 1).unwrap(),
+            publisher: ros::publish_pose_with_cov_stamped(topic, 1).unwrap(),
         }
     }
 }
@@ -94,17 +87,8 @@ impl BasePosePubWrapper for PoseCovPubWrapper {
         &self.topic
     }
 
-    fn send(&self, msg: rosrust_msg::geometry_msgs::Pose, frame_id: String) {
-        let mut msg_cov = rosrust_msg::geometry_msgs::PoseWithCovarianceStamped::default();
-        msg_cov.header.frame_id = frame_id;
-        msg_cov.pose.pose.orientation.x = msg.orientation.x;
-        msg_cov.pose.pose.orientation.y = msg.orientation.y;
-        msg_cov.pose.pose.orientation.z = msg.orientation.z;
-        msg_cov.pose.pose.orientation.w = msg.orientation.w;
-        msg_cov.pose.pose.position.x = msg.position.x;
-        msg_cov.pose.pose.position.y = msg.position.y;
-        msg_cov.pose.pose.position.z = 0.0;
-        self.publisher.send(msg_cov).unwrap();
+    fn send(&self, pose: types::Pose, frame_id: String) {
+        ros::send_pose_with_cov_stamped(&self.publisher, pose, frame_id);
     }
 }
 
@@ -121,10 +105,10 @@ pub struct SendPose {
 
 impl SendPose {
     pub fn new(topics: &Vec<SendPoseConfig>, viewport: Rc<RefCell<Viewport>>) -> SendPose {
-        let base_link_pose = viewport.borrow().tf_listener.lookup_transform(
+        let base_link_pose = viewport.borrow().tf.lookup_transform(
             &viewport.borrow().static_frame,
             &viewport.borrow().robot_frame,
-            rosrust::Time::new(),
+            ros::now(),
         );
 
         let robot_pose = if base_link_pose.is_ok() {
@@ -169,17 +153,17 @@ impl SendPose {
 
     fn send_new_pose(&mut self) {
         if self.new_pose.abs_diff_ne(&self.robot_pose, 0.01) {
-            let pose = transformation::iso2d_to_ros(&self.new_pose);
+            let pose_tf = transformation::iso2d_to_ros(&self.new_pose);
             let frame_id = self.viewport.borrow().static_frame.to_string();
-            let mut msg = rosrust_msg::geometry_msgs::Pose::default();
-            msg.orientation.x = pose.rotation.x;
-            msg.orientation.y = pose.rotation.y;
-            msg.orientation.z = pose.rotation.z;
-            msg.orientation.w = pose.rotation.w;
-            msg.position.x = pose.translation.x;
-            msg.position.y = pose.translation.y;
-            msg.position.z = 0.0;
-            self.publishers[self.current_topic].send(msg, frame_id);
+            let pose = types::Pose {
+                position: types::Point {
+                    x: pose_tf.translation.x,
+                    y: pose_tf.translation.y,
+                    z: 0.0,
+                },
+                orientation: pose_tf.rotation,
+            };
+            self.publishers[self.current_topic].send(pose, frame_id);
             self.ghost_active = false;
         }
     }
@@ -189,10 +173,10 @@ impl<B: Backend> BaseMode<B> for SendPose {}
 
 impl AppMode for SendPose {
     fn run(&mut self) {
-        let base_link_pose = self.viewport.borrow().tf_listener.lookup_transform(
+        let base_link_pose = self.viewport.borrow().tf.lookup_transform(
             &self.viewport.borrow().static_frame,
             &self.viewport.borrow().robot_frame,
-            rosrust::Time::new(),
+            ros::now(),
         );
 
         self.robot_pose = if base_link_pose.is_ok() {

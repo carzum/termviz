@@ -11,6 +11,8 @@ use crate::pose;
 
 use std::sync::Arc;
 
+use crate::ros::tf::TfClient;
+
 pub struct Listeners {
     pub lasers: Vec<laser::LaserListener>,
     pub markers: marker::MarkersListener,
@@ -24,7 +26,7 @@ pub struct Listeners {
 
 impl Listeners {
     pub fn new(
-        tf_listener: Arc<rustros_tf::TfListener>,
+        tf: Arc<dyn TfClient>,
         static_frame: String,
         laser_topics: Vec<ListenerConfigColor>,
         marker_topics: Vec<ListenerConfig>,
@@ -40,12 +42,12 @@ impl Listeners {
         for laser_config in laser_topics {
             lasers.push(laser::LaserListener::new(
                 laser_config,
-                tf_listener.clone(),
+                tf.clone(),
                 static_frame.clone(),
             ));
         }
 
-        let mut markers = marker::MarkersListener::new(tf_listener.clone(), static_frame.clone());
+        let mut markers = marker::MarkersListener::new(tf.clone(), static_frame.clone());
         for marker_config in marker_topics {
             markers.add_marker_listener(&marker_config);
         }
@@ -58,7 +60,7 @@ impl Listeners {
         for map_config in map_topics {
             maps.push(map::MapListener::new(
                 map_config,
-                tf_listener.clone(),
+                tf.clone(),
                 static_frame.clone(),
             ));
         }
@@ -67,7 +69,7 @@ impl Listeners {
         for pc_config in pointcloud2_topics {
             pointclouds.push(pointcloud::PointCloud2Listener::new(
                 pc_config,
-                tf_listener.clone(),
+                tf.clone(),
                 static_frame.clone(),
             ));
         }
@@ -76,7 +78,7 @@ impl Listeners {
         for polygon_config in polygon_stamped_topics {
             polygons.push(polygon::PolygonListener::new(
                 polygon_config,
-                tf_listener.clone(),
+                tf.clone(),
                 static_frame.clone(),
             ));
         }

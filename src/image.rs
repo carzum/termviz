@@ -1,8 +1,8 @@
 use crate::config::ImageListenerConfig;
+use crate::ros;
+use crate::ros::types;
 use byteorder::{ByteOrder, LittleEndian};
 use image::{imageops, DynamicImage, ImageBuffer, Rgb, RgbImage, RgbaImage};
-use rosrust;
-use rosrust_msg;
 use std::sync::{Arc, RwLock};
 
 // remap a value from range min_val - max_val to 0 - 255
@@ -17,7 +17,7 @@ fn bgr2rgb(bgr_img: &RgbImage) -> RgbImage {
     })
 }
 
-fn read_img_msg(img_msg: rosrust_msg::sensor_msgs::Image) -> DynamicImage {
+fn read_img_msg(img_msg: types::Image) -> DynamicImage {
     match img_msg.encoding.as_ref() {
         "8UC1" | "mono8" => DynamicImage::ImageLuma8(
             ImageBuffer::from_raw(img_msg.width, img_msg.height, img_msg.data).unwrap(),
@@ -85,7 +85,7 @@ fn read_u16(vec: &Vec<u8>) -> Vec<u8> {
 pub struct ImageListener {
     pub config: ImageListenerConfig,
     pub img: Arc<RwLock<RgbaImage>>,
-    _subscriber: Option<rosrust::Subscriber>,
+    _subscriber: Option<ros::SubscriptionHandle>,
     _rotation: Arc<RwLock<i64>>,
 }
 
@@ -104,10 +104,7 @@ impl ImageListener {
     pub fn setup_sub(&mut self) {
         let cb_img = self.img.clone();
         let cb_rotation = self._rotation.clone();
-        let sub = rosrust::subscribe(
-            &self.config.topic,
-            1,
-            move |img_msg: rosrust_msg::sensor_msgs::Image| {
+        let sub = ros::subscribe_image(&self.config.topic, 1, move |img_msg: types::Image| {
                 let mut img = read_img_msg(img_msg).to_rgba8();
                 let rot = cb_rotation.read().unwrap();
                 match *rot {
@@ -118,9 +115,8 @@ impl ImageListener {
                 }
                 let mut cb_img = cb_img.write().unwrap();
                 *cb_img = img;
-            },
-        )
-        .unwrap();
+            })
+            .unwrap();
         self._subscriber = Some(sub)
     }
 

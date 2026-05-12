@@ -1,12 +1,12 @@
 use crate::config::{Color, PoseListenerConfig};
+use crate::ros;
+use crate::ros::types;
 use crate::transformation::ros_pose_to_isometry;
 use nalgebra::geometry::{Isometry3, Point3};
 use std::option::Option;
 use std::sync::{Arc, RwLock};
 use tui::style;
 use tui::widgets::canvas::Line;
-
-use rosrust;
 
 fn pose_to_arrow(pose: &Isometry3<f64>, length: f64, color: &Color) -> Vec<Line> {
     let mut lines: Vec<Line> = Vec::new();
@@ -89,22 +89,18 @@ fn poses_to_lines(poses: &Vec<Isometry3<f64>>, color: &Color) -> Vec<Line> {
 pub struct PoseStampedListener {
     config: PoseListenerConfig,
     pose: Arc<RwLock<Option<Isometry3<f64>>>>,
-    _subscriber: rosrust::Subscriber,
+    _subscriber: ros::SubscriptionHandle,
 }
 
 impl PoseStampedListener {
     pub fn new(config: PoseListenerConfig) -> PoseStampedListener {
         let pose = Arc::new(RwLock::new(None));
         let cb_pose = pose.clone();
-        let sub = rosrust::subscribe(
-            &config.topic,
-            2,
-            move |pose_msg: rosrust_msg::geometry_msgs::PoseStamped| {
+        let sub = ros::subscribe_pose_stamped(&config.topic, 2, move |pose_msg: types::PoseStamped| {
                 let pose_iso = ros_pose_to_isometry(&pose_msg.pose);
                 *cb_pose.write().unwrap() = Some(pose_iso);
-            },
-        )
-        .unwrap();
+            })
+            .unwrap();
 
         PoseStampedListener {
             config: config,
@@ -128,26 +124,22 @@ impl PoseStampedListener {
 pub struct PoseArrayListener {
     config: PoseListenerConfig,
     poses: Arc<RwLock<Vec<Isometry3<f64>>>>,
-    _subscriber: rosrust::Subscriber,
+    _subscriber: ros::SubscriptionHandle,
 }
 
 impl PoseArrayListener {
     pub fn new(config: PoseListenerConfig) -> PoseArrayListener {
         let poses = Arc::new(RwLock::new(Vec::<Isometry3<f64>>::new()));
         let cb_poses = poses.clone();
-        let sub = rosrust::subscribe(
-            &config.topic,
-            2,
-            move |pose_array: rosrust_msg::geometry_msgs::PoseArray| {
+        let sub = ros::subscribe_pose_array(&config.topic, 2, move |pose_array: types::PoseArray| {
                 let poses_iso = pose_array
                     .poses
                     .into_iter()
                     .map(|p| ros_pose_to_isometry(&p))
                     .collect();
                 *cb_poses.write().unwrap() = poses_iso;
-            },
-        )
-        .unwrap();
+            })
+            .unwrap();
 
         PoseArrayListener {
             config: config,
@@ -189,26 +181,22 @@ impl PoseArrayListener {
 pub struct PathListener {
     config: PoseListenerConfig,
     poses: Arc<RwLock<Vec<Isometry3<f64>>>>,
-    _subscriber: rosrust::Subscriber,
+    _subscriber: ros::SubscriptionHandle,
 }
 
 impl PathListener {
     pub fn new(config: PoseListenerConfig) -> PathListener {
         let poses = Arc::new(RwLock::new(Vec::<Isometry3<f64>>::new()));
         let cb_poses = poses.clone();
-        let sub = rosrust::subscribe(
-            &config.topic,
-            2,
-            move |path: rosrust_msg::nav_msgs::Path| {
+        let sub = ros::subscribe_path(&config.topic, 2, move |path: types::Path| {
                 let poses_iso = path
                     .poses
                     .into_iter()
                     .map(|p| ros_pose_to_isometry(&p.pose))
                     .collect();
                 *cb_poses.write().unwrap() = poses_iso;
-            },
-        )
-        .unwrap();
+            })
+            .unwrap();
 
         PathListener {
             config: config,

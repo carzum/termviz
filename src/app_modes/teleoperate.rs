@@ -1,8 +1,8 @@
 use crate::app_modes::viewport::{UseViewport, Viewport};
 use crate::app_modes::{input, AppMode, BaseMode};
 use crate::config::{TeleopConfig, TeleopMode};
-use rosrust;
-use rosrust_msg;
+use crate::ros;
+use crate::ros::types;
 use std::cell::RefCell;
 use std::rc::Rc;
 use tui::backend::Backend;
@@ -11,7 +11,7 @@ use tui::widgets::canvas::Context;
 pub struct Teleoperate {
     viewport: Rc<RefCell<Viewport>>,
     current_velocities: Velocities,
-    cmd_vel_pub: rosrust::Publisher<rosrust_msg::geometry_msgs::Twist>,
+    cmd_vel_pub: ros::TwistPublisher,
     increment: f64,
     increment_step: f64,
     publish_cmd_vel_when_idle: bool,
@@ -37,7 +37,7 @@ fn move_towards_zero(mut num: f64, increment: f64) -> f64 {
 
 impl Teleoperate {
     pub fn new(viewport: Rc<RefCell<Viewport>>, config: TeleopConfig) -> Teleoperate {
-        let cmd_vel_publisher = rosrust::publish(&config.cmd_vel_topic, 1).unwrap();
+        let cmd_vel_publisher = ros::publish_twist(&config.cmd_vel_topic, 1).unwrap();
         let initial_velocities = Velocities {
             x: 0.,
             y: 0.,
@@ -61,11 +61,14 @@ impl<B: Backend> BaseMode<B> for Teleoperate {}
 
 impl Teleoperate {
     fn publish_current_cmd_val(&mut self) {
-        let mut vel_cmd = rosrust_msg::geometry_msgs::Twist::default();
-        vel_cmd.linear.x = self.current_velocities.x;
-        vel_cmd.linear.y = self.current_velocities.y;
-        vel_cmd.angular.z = self.current_velocities.theta;
-        self.cmd_vel_pub.send(vel_cmd).unwrap();
+        ros::send_twist(
+            &self.cmd_vel_pub,
+            types::Twist {
+                linear_x: self.current_velocities.x,
+                linear_y: self.current_velocities.y,
+                angular_z: self.current_velocities.theta,
+            },
+        );
     }
 }
 

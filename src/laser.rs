@@ -1,39 +1,32 @@
 use crate::config::ListenerConfigColor;
+use crate::ros;
+use crate::ros::tf::TfClient;
+use crate::ros::types;
 use crate::transformation;
 use std::sync::{Arc, RwLock};
-
-use rosrust;
-use rustros_tf;
 
 pub struct LaserListener {
     pub config: ListenerConfigColor,
     pub points: Arc<RwLock<Vec<(f64, f64)>>>,
-    _tf_listener: Arc<rustros_tf::TfListener>,
+    _tf: Arc<dyn TfClient>,
     _static_frame: String,
-    _subscriber: rosrust::Subscriber,
+    _subscriber: ros::SubscriptionHandle,
 }
 
 impl LaserListener {
     pub fn new(
         config: ListenerConfigColor,
-        tf_listener: Arc<rustros_tf::TfListener>,
+        tf: Arc<dyn TfClient>,
         static_frame: String,
     ) -> LaserListener {
         let scan_points = Arc::new(RwLock::new(Vec::<(f64, f64)>::new()));
         let cb_scan_points = scan_points.clone();
         let str_ = static_frame.clone();
 
-        let local_listener = tf_listener.clone();
-        let laser_sub = rosrust::subscribe(
-            &config.topic,
-            2,
-            move |scan: rosrust_msg::sensor_msgs::LaserScan| {
+        let local_tf = tf.clone();
+        let laser_sub = ros::subscribe_laserscan(&config.topic, 2, move |scan: types::LaserScan| {
                 let mut points: Vec<(f64, f64)> = Vec::new();
-                let res = local_listener.lookup_transform(
-                    &str_,
-                    &scan.header.frame_id,
-                    scan.header.stamp,
-                );
+                let res = local_tf.lookup_transform(&str_, &scan.header.frame_id, scan.header.stamp);
                 match &res {
                     Ok(res) => res,
                     Err(_e) => return,
@@ -53,14 +46,13 @@ impl LaserListener {
                 }
                 let mut cb_scan_points = cb_scan_points.write().unwrap();
                 *cb_scan_points = points;
-            },
-        )
-        .unwrap();
+            })
+            .unwrap();
 
         LaserListener {
             config,
             points: scan_points,
-            _tf_listener: tf_listener.clone(),
+            _tf: tf,
             _static_frame: static_frame.to_string(),
             _subscriber: laser_sub,
         }

@@ -4,6 +4,8 @@
 use crate::app_modes::{input, AppMode, Drawable};
 use crate::footprint::get_current_footprint;
 use crate::listeners::Listeners;
+use crate::ros;
+use crate::ros::{tf::TfClient, types};
 use crate::transformation::{self, iso2d_to_ros};
 use nalgebra::Isometry2;
 use std::sync::Arc;
@@ -66,7 +68,7 @@ impl<B: Backend, T: UseViewport> Drawable<B> for T {
 pub struct Viewport {
     pub static_frame: String,
     pub robot_frame: String,
-    pub tf_listener: Arc<rustros_tf::TfListener>,
+    pub tf: Arc<dyn TfClient>,
     pub initial_bounds: Vec<f64>,
     pub footprint: Vec<(f64, f64)>,
     pub axis_length: f64,
@@ -80,7 +82,7 @@ impl Viewport {
     pub fn new(
         static_frame: &String,
         robot_frame: &String,
-        tf_listener: Arc<rustros_tf::TfListener>,
+        tf: Arc<dyn TfClient>,
         initial_bounds: &Vec<f64>,
         footprint: &Vec<(f64, f64)>,
         axis_length: f64,
@@ -91,7 +93,7 @@ impl Viewport {
         Viewport {
             static_frame: static_frame.clone(),
             robot_frame: robot_frame.clone(),
-            tf_listener: tf_listener.clone(),
+            tf,
             initial_bounds: initial_bounds.clone(),
             zoom: 1.0,
             zoom_factor: zoom_factor,
@@ -102,7 +104,7 @@ impl Viewport {
         }
     }
     pub fn get_frame_lines(
-        tf: &rosrust_msg::geometry_msgs::Transform,
+        tf: &types::Transform,
         axis_length: f64,
     ) -> Vec<Line> {
         let mut result: Vec<Line> = Vec::new();
@@ -162,11 +164,9 @@ impl AppMode for Viewport {
 impl UseViewport for Viewport {
     fn x_bounds(&self) -> [f64; 2] {
         let scale_factor = self.terminal_size.0 as f64 / self.terminal_size.1 as f64 * 0.5;
-        let res = self.tf_listener.clone().lookup_transform(
-            &self.static_frame,
-            &self.robot_frame,
-            rosrust::Time::new(),
-        );
+        let res = self
+            .tf
+            .lookup_transform(&self.static_frame, &self.robot_frame, ros::now());
         match &res {
             Ok(res) => res,
             Err(_e) => {
@@ -185,11 +185,9 @@ impl UseViewport for Viewport {
     }
     fn y_bounds(&self) -> [f64; 2] {
         let scale_factor = self.terminal_size.0 as f64 / self.terminal_size.1 as f64 * 0.5;
-        let res = self.tf_listener.clone().lookup_transform(
-            &self.static_frame,
-            &self.robot_frame,
-            rosrust::Time::new(),
-        );
+        let res = self
+            .tf
+            .lookup_transform(&self.static_frame, &self.robot_frame, ros::now());
         match &res {
             Ok(res) => res,
             Err(_e) => {
@@ -246,11 +244,9 @@ impl UseViewport for Viewport {
         }
 
         ctx.layer();
-        let base_link_pose = self.tf_listener.lookup_transform(
-            &self.static_frame,
-            &self.robot_frame,
-            rosrust::Time::new(),
-        );
+        let base_link_pose =
+            self.tf
+                .lookup_transform(&self.static_frame, &self.robot_frame, ros::now());
 
         let robot_pose = if base_link_pose.is_ok() {
             base_link_pose.unwrap().transform

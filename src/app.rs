@@ -21,6 +21,8 @@ use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Paragraph, Row, Table, Wrap};
 use tui::{Frame, Terminal};
 
+use crate::ros::tf::TfClient;
+
 pub struct App<B: Backend> {
     mode: usize,
     show_help: bool,
@@ -29,10 +31,10 @@ pub struct App<B: Backend> {
 }
 
 impl<B: Backend> App<B> {
-    pub fn new(tf_listener: Arc<rustros_tf::TfListener>, config: TermvizConfig) -> App<B> {
+    pub fn new(tf: Arc<dyn TfClient>, config: TermvizConfig) -> App<B> {
         let config_copy = config.clone();
         let listeners = Listeners::new(
-            tf_listener.clone(),
+            tf.clone(),
             config.fixed_frame.clone(),
             config.laser_topics,
             config.marker_topics,
@@ -47,7 +49,7 @@ impl<B: Backend> App<B> {
         let viewport = Rc::new(RefCell::new(app_modes::viewport::Viewport::new(
             &config.fixed_frame,
             &config.robot_frame,
-            tf_listener,
+            tf,
             &config.visible_area,
             &get_footprint(),
             config.axis_length,
@@ -63,7 +65,9 @@ impl<B: Backend> App<B> {
             viewport,
             config.teleop,
         ));
-        let topic_manager = Box::new(app_modes::topic_managment::TopicManager::new(config_copy));
+        let topic_manager = Box::new(app_modes::topic_managment::LazyTopicManager::new(
+            config_copy,
+        ));
         let image_view = Box::new(app_modes::image_view::ImageView::new(config.image_topics));
         App {
             mode: 1,

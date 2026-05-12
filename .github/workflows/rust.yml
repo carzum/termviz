@@ -10,17 +10,53 @@ env:
 
 jobs:
   build-latest:
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [ros1, ros2]
 
-    # Note: 24.04 doesn't have the ros-*-msgs packages anymore.
+    # Note: 24.04 doesn't have the ros-*-msgs packages anymore, and ROS 2 Humble targets 22.04.
     runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v2
+    - name: set up ROS 2
+      if: matrix.backend == 'ros2'
+      uses: ros-tooling/setup-ros@v0.7
+      with:
+        required-ros-distributions: humble
     - name: check formatting
       run: cargo fmt --all -- --check
     - name: install ROS messages
+      if: matrix.backend == 'ros1'
       run: sudo apt install ros-geometry-msgs ros-visualization-msgs ros-sensor-msgs ros-nav-msgs ros-tf2-msgs
-    - name: Build
+    - name: install ROS 2 dependencies
+      if: matrix.backend == 'ros2'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libclang-dev \
+          ros-humble-geometry-msgs \
+          ros-humble-nav-msgs \
+          ros-humble-sensor-msgs \
+          ros-humble-tf2-msgs \
+          ros-humble-tf2-ros \
+          ros-humble-visualization-msgs
+    - name: Build (ROS 1)
+      if: matrix.backend == 'ros1'
       run: ROSRUST_MSG_PATH=/usr/share/ cargo build --features ros1 --verbose
-    - name: Run tests
+    - name: Run tests (ROS 1)
+      if: matrix.backend == 'ros1'
       run: ROSRUST_MSG_PATH=/usr/share/ cargo test --features ros1 --verbose
+    - name: Build (ROS 2)
+      if: matrix.backend == 'ros2'
+      shell: bash
+      run: |
+        source /opt/ros/humble/setup.bash
+        cargo build --features ros2 --verbose
+    - name: Run tests (ROS 2)
+      if: matrix.backend == 'ros2'
+      shell: bash
+      run: |
+        source /opt/ros/humble/setup.bash
+        TERMVIZ_IT_ROS=1 cargo test --features ros2 --verbose
